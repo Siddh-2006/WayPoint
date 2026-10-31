@@ -39,9 +39,8 @@ describe('Shapley attribution tests', () => {
 
       const phiSum = Object.values(result.attributions).reduce((acc, v) => acc + v, 0);
 
-      // Check within 1e-4 because result.attributions are rounded to 4 decimals,
-      // but let's also verify unrounded efficiency
-      expect(Math.abs(phiSum - expectedShift)).toBeLessThan(1e-3);
+      // Core math asserts efficiency within 1e-9 literally
+      expect(Math.abs(phiSum - expectedShift)).toBeLessThan(1e-9);
     }
   });
 

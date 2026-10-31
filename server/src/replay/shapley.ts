@@ -211,14 +211,9 @@ export function computeShapley(input: ShapleyInput): ShapleyResult {
     }
   }
 
-  const roundedAttributions: Record<string, number> = {};
-  for (const c of changes) {
-    roundedAttributions[c] = Math.round((rawAttributions[c] ?? 0) * 10000) / 10000;
-  }
-
   return {
-    attributions: roundedAttributions,
-    totalShift: Math.round(totalShift * 10000) / 10000,
+    attributions: rawAttributions,
+    totalShift,
     method: resultMethod,
     methodNote,
     coalitions: coalitionsList,

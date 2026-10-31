@@ -78,11 +78,11 @@ try {
     if (diff > maxDiff) maxDiff = diff;
   }
 
-  const ok = maxDiff <= 0.001; // unrounded math is 1e-15, rounded to 4 decimals yields < 0.001
+  const ok = maxDiff <= 1e-9;
   check(
     '(a) Shapley efficiency: sum(phi) == v(all) - v(none) within 1e-9 on 100 synthetic value functions',
     ok,
-    `maxDiff=${maxDiff.toExponential(2)} across 100 runs`,
+    `maxDiff=${maxDiff.toExponential(4)} across 100 runs`,
   );
 } catch (err) {
   check('(a) Shapley efficiency test', false, String(err));

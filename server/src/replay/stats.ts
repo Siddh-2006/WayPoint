@@ -150,3 +150,4 @@ export function calculatePairwiseInteraction(
   const inter = vAB - vA - vB + v0;
   return Math.round(inter * 10000) / 10000;
 }
+
