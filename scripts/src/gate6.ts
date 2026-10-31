@@ -229,10 +229,11 @@ try {
 
 // ─── (g) POST /v1/demo/run bad_deploy stores 20 runs with contextHash links ───
 try {
+  const testProjectId = `gate6-demo-${Date.now()}`;
   const res = await fetch(`${BASE_URL}/v1/demo/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scenarioId: 'bad_deploy', projectId: 'gate6-demo' }),
+    body: JSON.stringify({ scenarioId: 'bad_deploy', projectId: testProjectId }),
   });
 
   const body = (await res.json()) as {
@@ -244,7 +245,7 @@ try {
 
   const runsInDb = await db
     .collection('runs')
-    .find({ projectId: 'gate6-demo', contextHash: body.contextHash })
+    .find({ projectId: testProjectId, contextHash: body.contextHash })
     .toArray();
 
   const contextInDb = await db
