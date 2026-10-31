@@ -22,6 +22,7 @@
     "gate:11": "tsx --env-file=.env scripts/src/gate11.ts",
     "gate:11e": "tsx --env-file=.env scripts/src/gate11e.ts",
     "gate:11f": "tsx --env-file=.env scripts/src/gate11f.ts",
+    "gate:11g": "tsx --env-file=.env scripts/src/gate11g.ts",
     "db:init": "tsx scripts/src/init-db.ts",
     "test": "pnpm -r test"
   },

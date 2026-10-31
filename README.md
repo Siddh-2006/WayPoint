@@ -97,9 +97,16 @@ pnpm gate:10b # Real vector recall, honest score typing & hard paraphrase evalua
 pnpm gate:11  # Evidence-cited LLM narration, MCP server & query explain panel
 pnpm gate:11e # Episodic memory calibration (split n=24), UI match tiering & Voyage rate limit resilience
 pnpm gate:11f # Product-aligned strong-tier recall (held-out n=12), realistic preflight & client RPM pacing
+pnpm gate:11g # Realistic preflight test, threshold provenance & weak match formatting
 ```
 
-### 5. Model Context Protocol (MCP) Server
+### 5. Episodic Memory Recall & Calibration ($n=24$)
+- **Evaluation Set**: Small benchmark of $n=24$ queries (12 calibration, 12 held-out) against 8 seeded lessons using official MongoDB Atlas Voyage-4 embeddings (1024-dim).
+- **Threshold Provenance**: Threshold `0.48` was chosen on 12 calibration queries, checked on 12 held-out (note: $n$ is small).
+- **Evaluation Summary**: "On a small evaluation (24 queries, 12 held out), vector search ranked the correct past incident first on every paraphrased query where keyword search found nothing. We set a conservative warning threshold, so weaker matches appear as context and don’t trigger a warning. Our false-warning rate on the held-out set was 0 of 5."
+- **Held-Out Results**: Strong-tier Hit@1 = 57% (4/7), Strong-tier Hit@3 = 57% (4/7), Negative False-Warning Rate = 0% (0/5). Pure rank-based Hit@3 without threshold cutoff is 100%.
+
+### 6. Model Context Protocol (MCP) Server
 Waypoint includes a standard I/O (stdio) MCP server allowing coding agents in Claude Desktop, Cursor, and Antigravity to run preflight verification and query lessons autonomously. See [docs/MCP.md](docs/MCP.md).
 
 ---
