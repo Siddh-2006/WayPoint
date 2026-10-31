@@ -176,9 +176,15 @@ export function LessonsPage() {
               >
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-sky-300 font-mono">{item.lessonId}</span>
-                  <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-950 text-sky-400 border border-sky-800">
-                    Match Score: {(item.score * 100).toFixed(0)}%
-                  </span>
+                  {item.scoreType === 'lexical' ? (
+                    <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-amber-950/70 text-amber-400 border border-amber-800/60">
+                      keyword match
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-950 text-sky-400 border border-sky-800">
+                      {(item.scoreType === 'cosine' ? 'cosine' : 'rrf')} similarity: {(item.score * 100).toFixed(0)}%
+                    </span>
+                  )}
                 </div>
                 <p className="text-slate-300">{item.lesson.symptom}</p>
                 <p className="text-muted text-[11px] font-mono">Why: {item.why}</p>

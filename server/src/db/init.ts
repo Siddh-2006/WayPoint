@@ -14,6 +14,7 @@
  */
 
 import { type Db, type Document } from 'mongodb';
+import { syncLessonEmbeddings } from '../lessons/service.js';
 
 // ─── Search-index status (module-level so /health can read it) ────────────────
 
@@ -195,15 +196,27 @@ export async function initDb(db: Db): Promise<void> {
   const lessonsCol = db.collection('lessons');
 
   try {
-    const existingSearchIdxNames = await lessonsCol
+    const existingSearchIdxs = await lessonsCol
       .listSearchIndexes()
       .toArray()
-      .then((idxs) => new Set(idxs.map((i) => (i as { name: string }).name)))
-      .catch(() => new Set<string>());
+      .catch(() => []);
+
+    const existingNames = new Set(existingSearchIdxs.map((i: any) => i.name));
+    const vectorIdx = existingSearchIdxs.find((i: any) => i.name === 'lessons_vector') as any;
+
+    let needRecreateVector = !existingNames.has('lessons_vector');
+    if (vectorIdx) {
+      const vecField = vectorIdx.latestDefinition?.fields?.find((f: any) => f.type === 'vector');
+      if (vecField && typeof vecField.numDimensions === 'number' && vecField.numDimensions !== embedDim) {
+        console.log(`[Waypoint] Recreating lessons_vector: dimension changed from ${vecField.numDimensions} to ${embedDim}`);
+        await lessonsCol.dropSearchIndex('lessons_vector').catch(() => undefined);
+        needRecreateVector = true;
+      }
+    }
 
     const creates: Array<Promise<unknown>> = [];
 
-    if (!existingSearchIdxNames.has('lessons_vector')) {
+    if (needRecreateVector) {
       creates.push(
         lessonsCol.createSearchIndex({
           name: 'lessons_vector',
@@ -219,7 +232,7 @@ export async function initDb(db: Db): Promise<void> {
       );
     }
 
-    if (!existingSearchIdxNames.has('lessons_text')) {
+    if (!existingNames.has('lessons_text')) {
       creates.push(
         lessonsCol.createSearchIndex({
           name: 'lessons_text',
@@ -248,16 +261,16 @@ export async function initDb(db: Db): Promise<void> {
       );
     } else {
       // Indexes already exist — check their status
-      const idxs = await lessonsCol
-        .listSearchIndexes()
-        .toArray()
-        .catch(() => []);
-
-      const allReady = idxs.every(
-        (i) => (i as { status?: string }).status === 'READY',
+      const allReady = existingSearchIdxs.every(
+        (i: any) => i.status === 'READY',
       );
       searchIndexStatus = allReady ? 'ready' : 'pending';
     }
+
+    // Re-embed any existing lessons that lack current vector dimensions
+    await syncLessonEmbeddings(db).catch((err) => {
+      console.warn('[Waypoint] Non-fatal: lesson re-embedding skipped or failed:', err);
+    });
   } catch (err) {
     // Search index errors must not crash the server (common on Atlas M0 cold start)
     searchIndexStatus = 'failed';

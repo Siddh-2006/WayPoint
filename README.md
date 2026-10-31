@@ -100,3 +100,4 @@ pnpm gate:10  # Episodic memory lessons, hybrid recall & preflight guard
 ## License & Credits
 
 - MIT License. See [LICENSE](./LICENSE) and [THIRD_PARTY.md](./THIRD_PARTY.md) for full license audit of open-source libraries.
+

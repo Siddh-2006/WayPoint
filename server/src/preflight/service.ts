@@ -16,7 +16,7 @@
 import type { Db } from 'mongodb';
 import { config } from '../config.js';
 import { diffContexts, type ContextChange } from '../contexts/diff.js';
-import type { ContextData } from '../contexts/hash.js';
+import { hashContext, type ContextData } from '../contexts/hash.js';
 import { extractUnits } from '../replay/units.js';
 import { getCorpus, type ReplayCellStats } from '../replay/engine.js';
 import { runAgent } from '../demo/invoice-agent.js';
@@ -102,6 +102,7 @@ export async function runPreflight(
   const units = extractUnits(liveContext, proposedContext);
 
   // 4. Replay proposed context across corpus with memoization in replayCache
+  const proposedHash = hashContext(proposedContext);
   const corpus = getCorpus();
   const contracts = await contractsCol.find({ projectId }).toArray();
   const samples = config.REPLAY_SAMPLES;
@@ -113,7 +114,7 @@ export async function runPreflight(
     for (let s = 1; s <= samples; s++) {
       const numId = parseInt(input.id.replace(/\D/g, ''), 10) || (idx + 1);
       const seed = numId * 1000 + s;
-      const cacheKey = `replay:preflight:${input.id}:${seed}:v1`;
+      const cacheKey = `replay:preflight:${proposedHash}:${input.id}:${seed}:v1`;
 
       let isViolation = false;
       const cached = await replayCacheCol.findOne({ key: cacheKey });
@@ -158,16 +159,19 @@ export async function runPreflight(
   const baselineWilson = wilsonScoreInterval(0, totalEvals);
   const cellVerdict = determineVerdict(replayWilson, baselineWilson, config.EXPERIMENT_EPSILON);
 
-  // 5. Build recall query from change summaries
-  const changeSummaries = changes.map((c) => c.summary).join(' ');
-  const recallQuery = changeSummaries || 'prompt text or model update';
+  // 5. Build recall query from change summaries (only if changes exist)
+  let recallRes = { results: [] as RecallResultItem[], mode: 'none' };
+  if (changes.length > 0) {
+    const changeSummaries = changes.map((c) => c.summary).join(' ');
+    const recallQuery = changeSummaries || 'proposed configuration change';
 
-  const recallRes = await recallLessons(db, {
-    projectId,
-    query: recallQuery,
-    minScore: config.LESSON_MIN_SCORE,
-    limit: 3,
-  });
+    recallRes = await recallLessons(db, {
+      projectId,
+      query: recallQuery,
+      minScore: config.LESSON_MIN_SCORE,
+      limit: 3,
+    });
+  }
 
   // 6. Determine final verdict & reasons
   const reasons: string[] = [];

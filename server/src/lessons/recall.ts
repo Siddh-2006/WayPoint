@@ -10,6 +10,8 @@
  *   - Exact token matching for identifiers like "invoice_id"
  *   - Filters out results below LESSON_MIN_SCORE
  *   - When EMBED_PROVIDER == 'none', falls back to text_only recall mode
+ *   - Supports explicit mode override: 'hybrid' | 'rrf' | 'vector_only' | 'text_only'
+ *   - Honest score typing: 'cosine' | 'rrf' | 'lexical' (never labels lexical as "similarity")
  */
 
 import type { Db } from 'mongodb';
@@ -17,15 +19,19 @@ import { config } from '../config.js';
 import { getEmbeddingProvider } from '../embed/index.js';
 import type { LessonDoc } from './service.js';
 
+export type ScoreType = 'cosine' | 'rrf' | 'lexical';
+
 export interface RecallResultItem {
+  rank: number;
   lessonId: string;
   score: number;
+  scoreType: ScoreType;
   why: string;
   lesson: LessonDoc;
 }
 
 export interface RecallResponse {
-  mode: 'hybrid' | 'rrf' | 'text_only';
+  mode: 'hybrid' | 'rrf' | 'vector_only' | 'text_only';
   results: RecallResultItem[];
   query: string;
 }
@@ -56,35 +62,39 @@ export async function recallLessons(
   options: {
     projectId: string;
     query: string;
-    minScore?: number;
-    limit?: number;
+    minScore?: number | undefined;
+    limit?: number | undefined;
+    mode?: 'hybrid' | 'rrf' | 'vector_only' | 'text_only' | undefined;
   },
 ): Promise<RecallResponse> {
   const { projectId, query } = options;
   const minScore = options.minScore ?? config.LESSON_MIN_SCORE;
   const limit = options.limit ?? 5;
+  const targetMode = options.mode ?? 'rrf';
   const now = new Date();
 
   const lessonsCol = db.collection<LessonDoc>('lessons');
   const provider = getEmbeddingProvider();
 
-  // 1. Text-Only mode if provider is 'none'
-  if (provider.name === 'none') {
+  // 1. Text-Only mode if requested or if provider is 'none'
+  if (targetMode === 'text_only' || provider.name === 'none') {
     const textMatches = await findTextMatches(lessonsCol, projectId, query, now);
     const results: RecallResultItem[] = textMatches
-      .map((item) => ({
+      .filter((item) => item.score >= minScore)
+      .slice(0, limit)
+      .map((item, idx) => ({
+        rank: idx + 1,
         lessonId: item.lesson._id,
         score: item.score,
-        why: `Matched via text search tokens: ${item.matchedTokens.join(', ')}`,
+        scoreType: 'lexical',
+        why: `Matched via keywords: ${item.matchedTokens.join(', ')}`,
         lesson: item.lesson,
-      }))
-      .filter((r) => r.score >= minScore)
-      .slice(0, limit);
+      }));
 
     return { mode: 'text_only', results, query };
   }
 
-  // 2. Vector Search + Text Search with Reciprocal Rank Fusion (k=60)
+  // 2. Vector Search Path
   let vectorRanks: Map<string, { rank: number; score: number; lesson: LessonDoc }> = new Map();
 
   try {
@@ -132,7 +142,7 @@ export async function recallLessons(
         vectorRanks.set(lesson._id, { rank: idx + 1, score, lesson });
       });
     }
-  } catch (err) {
+  } catch {
     // If Atlas vector search index is not yet built or unavailable, fall back to in-memory cosine
     const candidates = await lessonsCol
       .find({ projectId, status: 'active', expiresAt: { $gt: now } })
@@ -159,6 +169,23 @@ export async function recallLessons(
     }
   }
 
+  // If vector_only was explicitly requested:
+  if (targetMode === 'vector_only') {
+    const vectorResults: RecallResultItem[] = Array.from(vectorRanks.values())
+      .filter((item) => item.score >= minScore)
+      .slice(0, limit)
+      .map((item) => ({
+        rank: item.rank,
+        lessonId: item.lesson._id,
+        score: Math.round(item.score * 1000) / 1000,
+        scoreType: 'cosine',
+        why: `Vector cosine similarity: ${(item.score * 100).toFixed(0)}%`,
+        lesson: item.lesson,
+      }));
+
+    return { mode: 'vector_only', results: vectorResults, query };
+  }
+
   // 3. Text Path: match keywords, tokens, and exact identifiers
   const textMatches = await findTextMatches(lessonsCol, projectId, query, now);
   const textRanks: Map<string, { rank: number; score: number; lesson: LessonDoc }> = new Map();
@@ -170,8 +197,8 @@ export async function recallLessons(
   const allDocIds = new Set([...vectorRanks.keys(), ...textRanks.keys()]);
   const combinedScores: Array<{
     lessonId: string;
-    rrfScore: number;
-    normalizedScore: number;
+    score: number;
+    scoreType: ScoreType;
     why: string;
     lesson: LessonDoc;
   }> = [];
@@ -194,38 +221,51 @@ export async function recallLessons(
 
     if (txtItem) {
       rrfScore += 1 / (K + txtItem.rank);
-      reasons.push(`Text match rank #${txtItem.rank}`);
+      reasons.push(`Keyword match rank #${txtItem.rank}`);
     }
 
-    // Max theoretical RRF score with 2 sources is 2 / (K + 1) = 2/61 = ~0.03278
-    // Normalize to [0, 1] range:
-    const normalizedScore = vecItem
-      ? Math.max(vecItem.score, Math.min(1.0, (rrfScore / (2 / (K + 1))) * 0.95))
-      : Math.min(1.0, (rrfScore / (1 / (K + 1))) * 0.85);
+    let score = 0;
+    let scoreType: ScoreType = 'lexical';
+
+    if (vecItem && txtItem) {
+      score = Math.min(1.0, vecItem.score + 0.25 * txtItem.score);
+      scoreType = 'rrf';
+    } else if (vecItem) {
+      score = vecItem.score;
+      scoreType = 'cosine';
+    } else if (txtItem) {
+      score = txtItem.score;
+      scoreType = 'lexical';
+    }
 
     combinedScores.push({
       lessonId: docId,
-      rrfScore,
-      normalizedScore: Math.round(normalizedScore * 1000) / 1000,
+      score: Math.round(score * 1000) / 1000,
+      scoreType,
       why: reasons.join('; '),
       lesson,
     });
   }
 
-  combinedScores.sort((a, b) => b.normalizedScore - a.normalizedScore);
+  combinedScores.sort((a, b) => b.score - a.score);
 
   const finalResults: RecallResultItem[] = combinedScores
-    .filter((item) => item.normalizedScore >= minScore)
+    .filter((item) => item.score >= minScore)
     .slice(0, limit)
-    .map((item) => ({
+    .map((item, idx) => ({
+      rank: idx + 1,
       lessonId: item.lessonId,
-      score: item.normalizedScore,
+      score: item.score,
+      scoreType: item.scoreType,
       why: item.why,
       lesson: item.lesson,
     }));
 
+  const rankFusionAvailable = await probeRankFusionSupport(db);
+  const activeMode = rankFusionAvailable ? 'hybrid' : 'rrf';
+
   return {
-    mode: 'rrf',
+    mode: activeMode,
     results: finalResults,
     query,
   };
@@ -233,6 +273,7 @@ export async function recallLessons(
 
 /**
  * Finds text matches using regex and token extraction over symptom, fix, and culprit.
+ * Returns raw honest overlap ratio (no fake similarity padding).
  */
 async function findTextMatches(
   col: any,
@@ -273,15 +314,14 @@ async function findTextMatches(
     }
 
     if (matchedTokens.length > 0) {
-      // Score based on token overlap proportion
       const exactIdentifierMatch = tokens.some((t) => t.includes('_') && haystack.includes(t));
       const overlapRatio = matchedTokens.length / tokens.length;
-      let score = 0.5 + overlapRatio * 0.45;
-      if (exactIdentifierMatch) score = Math.max(score, 0.88);
+      // Honest score: 1.0 for exact token identifier, otherwise literal overlap fraction
+      const score = exactIdentifierMatch ? 1.0 : Math.round(overlapRatio * 100) / 100;
 
       matches.push({
         lesson,
-        score: Math.min(1.0, Math.round(score * 100) / 100),
+        score,
         matchedTokens,
       });
     }
@@ -303,4 +343,3 @@ function cosineSimilarity(a: number[], b: number[]): number {
   if (normA === 0 || normB === 0) return 0;
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
-

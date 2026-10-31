@@ -24,18 +24,20 @@ export interface LessonDoc {
   culprit: CulpritSummary;
   changeTypes: string[];
   fix: string;
-  note?: string;
+  note?: string | undefined;
   source: 'incident' | 'seed';
   status: 'active' | 'corrected' | 'expired';
   embedding: number[];
+  embeddingModel?: string | undefined;
+  dim?: number | undefined;
   createdAt: Date;
   expiresAt: Date;
 }
 
 export interface ResolveIncidentInput {
   fix: string;
-  note?: string;
-  source?: 'incident' | 'seed';
+  note?: string | undefined;
+  source?: 'incident' | 'seed' | undefined;
 }
 
 export async function resolveIncident(
@@ -132,6 +134,8 @@ export async function resolveIncident(
     source: input.source ?? 'incident',
     status: 'active',
     embedding,
+    embeddingModel: provider.model,
+    dim: provider.dim,
     createdAt: now,
     expiresAt,
   };
@@ -159,7 +163,7 @@ export async function resolveIncident(
 export async function patchLesson(
   db: Db,
   lessonId: string,
-  patch: { status?: 'active' | 'corrected' | 'expired'; note?: string },
+  patch: { status?: 'active' | 'corrected' | 'expired' | undefined; note?: string | undefined },
 ): Promise<LessonDoc | null> {
   const lessonsCol = db.collection<LessonDoc>('lessons');
   const update: Record<string, unknown> = {};
@@ -180,5 +184,53 @@ export async function listLessons(db: Db, projectId: string): Promise<LessonDoc[
     .find({ projectId })
     .sort({ createdAt: -1 })
     .toArray();
+}
+
+/**
+ * Re-embeds all existing lessons if their embedding is missing or has the wrong dimension.
+ * Records embeddingModel and dim on each lesson doc.
+ */
+export async function syncLessonEmbeddings(db: Db): Promise<{ synced: number }> {
+  const provider = getEmbeddingProvider();
+  if (provider.name === 'none') return { synced: 0 };
+
+  const lessonsCol = db.collection<LessonDoc>('lessons');
+  const lessons = await lessonsCol.find({}).toArray();
+
+  let synced = 0;
+  for (const lesson of lessons) {
+    const needsEmbed =
+      !Array.isArray(lesson.embedding) ||
+      lesson.embedding.length !== provider.dim ||
+      lesson.embedding.length === 0;
+
+    if (needsEmbed) {
+      const culpritsList = lesson.culprit?.units ?? [];
+      const textToEmbed = `${lesson.symptom} | ${culpritsList.join(', ')} | ${lesson.changeTypes.join(', ')} | ${lesson.fix}`;
+      try {
+        const [vec] = await provider.embed([textToEmbed], 'document');
+        if (vec && vec.length === provider.dim) {
+          await lessonsCol.updateOne(
+            { _id: lesson._id },
+            {
+              $set: {
+                embedding: vec,
+                embeddingModel: provider.model,
+                dim: provider.dim,
+              },
+            },
+          );
+          synced++;
+        }
+      } catch (err) {
+        console.warn(`[Lessons] Failed to re-embed lesson ${lesson._id}:`, err);
+      }
+    }
+  }
+
+  if (synced > 0) {
+    console.log(`[Lessons] Re-embedded ${synced} lessons with model "${provider.model}" (dim ${provider.dim})`);
+  }
+  return { synced };
 }
 

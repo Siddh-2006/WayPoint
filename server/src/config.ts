@@ -52,7 +52,7 @@ const schema = z.object({
   LLM_MODEL: z.string().optional(),
 
   // Embeddings
-  EMBED_PROVIDER: z.enum(['voyage', 'ollama', 'none']).default('none'),
+  EMBED_PROVIDER: z.enum(['voyage', 'mongodb', 'ollama', 'none']).default('voyage'),
   EMBED_BASE_URL: z.string().optional(),
   EMBED_API_KEY: z.string().optional(),
   EMBED_MODEL: z.string().optional(),
@@ -92,7 +92,7 @@ const schema = z.object({
 
   // Lessons, Vector Recall & Preflight
   LESSON_TTL_DAYS: z.coerce.number().int().positive().default(90),
-  LESSON_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.65),
+  LESSON_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.25),
 });
 
 // ─── Parse ────────────────────────────────────────────────────────────────────

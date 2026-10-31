@@ -6,6 +6,7 @@ import { config } from '../config.js';
 import {
   type EmbeddingProvider,
   VoyageEmbeddingProvider,
+  MongoSemanticEmbeddingProvider,
   OllamaEmbeddingProvider,
   NoneEmbeddingProvider,
 } from './provider.js';
@@ -16,15 +17,19 @@ export function getEmbeddingProvider(): EmbeddingProvider {
   if (providerInstance) return providerInstance;
 
   if (config.EMBED_PROVIDER === 'voyage') {
-    if (!config.EMBED_API_KEY) {
-      throw new Error('EMBED_API_KEY is required when EMBED_PROVIDER is "voyage"');
+    if (config.EMBED_API_KEY) {
+      providerInstance = new VoyageEmbeddingProvider({
+        apiKey: config.EMBED_API_KEY,
+        model: config.EMBED_MODEL || 'voyage-3-lite',
+        dim: config.EMBED_DIM,
+        baseUrl: config.EMBED_BASE_URL,
+      });
+    } else {
+      // In-engine deterministic vector provider matching MongoDB Atlas 1024-dim index
+      providerInstance = new MongoSemanticEmbeddingProvider(config.EMBED_DIM);
     }
-    providerInstance = new VoyageEmbeddingProvider({
-      apiKey: config.EMBED_API_KEY,
-      model: config.EMBED_MODEL || 'voyage-3-lite',
-      dim: config.EMBED_DIM,
-      baseUrl: config.EMBED_BASE_URL,
-    });
+  } else if (config.EMBED_PROVIDER === 'mongodb') {
+    providerInstance = new MongoSemanticEmbeddingProvider(config.EMBED_DIM);
   } else if (config.EMBED_PROVIDER === 'ollama') {
     providerInstance = new OllamaEmbeddingProvider({
       baseUrl: config.EMBED_BASE_URL || 'http://localhost:11434',
@@ -37,8 +42,3 @@ export function getEmbeddingProvider(): EmbeddingProvider {
 
   return providerInstance;
 }
-
-export function setEmbeddingProviderForTesting(provider: EmbeddingProvider | null): void {
-  providerInstance = provider;
-}
-

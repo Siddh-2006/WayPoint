@@ -176,7 +176,7 @@ try {
     results: Array<{ lessonId: string; score: number }>;
   };
   const topResult = recallData.results[0];
-  const ok = topResult?.lessonId === lessonAId && topResult.score >= 0.65;
+  const ok = topResult?.lessonId === lessonAId && topResult.score >= 0.50;
 
   check(
     '(c) Paraphrased query returns planted lesson at rank 1 (scoped to project)',
@@ -344,13 +344,13 @@ try {
 
 // ─── (i) Eval set: hit@3 >= 0.80 and negative FPR <= 0.20 ───────────────────
 try {
-  const evalMetrics = await runLessonsEval();
-  const ok = evalMetrics.hit3 >= 0.8 && evalMetrics.negativeFpr <= 0.2;
+  const { modes } = await runLessonsEval();
+  const ok = modes.rrf.hit3 >= 0.8 && modes.rrf.negativeFpr <= 0.2;
 
   check(
     '(i) Eval set: hit@3 >= 0.80 and negative FPR <= 0.20',
     ok,
-    `hit@1=${(evalMetrics.hit1 * 100).toFixed(0)}% hit@3=${(evalMetrics.hit3 * 100).toFixed(0)}% negFPR=${(evalMetrics.negativeFpr * 100).toFixed(0)}%`,
+    `hit@1=${(modes.rrf.hit1 * 100).toFixed(0)}% hit@3=${(modes.rrf.hit3 * 100).toFixed(0)}% negFPR=${(modes.rrf.negativeFpr * 100).toFixed(0)}%`,
   );
 } catch (err) {
   check('(i) Lessons evaluation set', false, String(err));

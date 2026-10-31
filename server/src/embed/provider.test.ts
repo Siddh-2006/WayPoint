@@ -29,6 +29,7 @@ describe('Embedding Provider & Dimension Verification', () => {
     // Fake provider configured for dim 1024, but returning 512-dim vectors
     const fakeMismatchedProvider: EmbeddingProvider = {
       name: 'voyage',
+      model: 'voyage-3-lite',
       dim: 1024,
       async embed() {
         return [new Array(512).fill(0.1)];
@@ -50,6 +51,7 @@ describe('Embedding Provider & Dimension Verification', () => {
   it('passes verification when actual vector length matches configured dim', async () => {
     const fakeValidProvider: EmbeddingProvider = {
       name: 'voyage',
+      model: 'voyage-3-lite',
       dim: 1024,
       async embed() {
         return [new Array(1024).fill(0.05)];

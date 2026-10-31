@@ -183,9 +183,15 @@ export function PreflightPage() {
                       <span className="font-mono text-xs font-semibold text-sky-300">
                         {item.lessonId}
                       </span>
-                      <span className="text-xs font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800">
-                        Score: {(item.score * 100).toFixed(0)}%
-                      </span>
+                      {item.scoreType === 'lexical' ? (
+                        <span className="text-xs font-mono px-2 py-0.5 rounded bg-amber-950/70 text-amber-400 border border-amber-800/60">
+                          keyword match
+                        </span>
+                      ) : (
+                        <span className="text-xs font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800">
+                          similarity: {(item.score * 100).toFixed(0)}%
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-slate-200">{item.lesson?.symptom}</p>
                     <div className="p-2.5 rounded-lg bg-slate-950 border border-border/60 text-xs text-emerald-300">

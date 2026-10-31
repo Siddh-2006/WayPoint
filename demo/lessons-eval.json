@@ -107,75 +107,118 @@
   ],
   "queries": [
     {
-      "query": "Tool argument key invoiceId was replaced by invoice_id",
+      "query": "the new model renamed a field to snake case",
       "expectedLessonId": "lesson-seed-1",
-      "isNegative": false
+      "isNegative": false,
+      "kind": "hard_paraphrase"
+    },
+    {
+      "query": "underlying language model shifted key casing style to underscores",
+      "expectedLessonId": "lesson-seed-1",
+      "isNegative": false,
+      "kind": "hard_paraphrase"
+    },
+    {
+      "query": "monetary denomination symbols were omitted from billing parameters",
+      "expectedLessonId": "lesson-seed-2",
+      "isNegative": false,
+      "kind": "hard_paraphrase"
+    },
+    {
+      "query": "floating point value serialized as text instead of numeric",
+      "expectedLessonId": "lesson-seed-3",
+      "isNegative": false,
+      "kind": "hard_paraphrase"
+    },
+    {
+      "query": "levy and tariff breakdown absent from billing aggregation",
+      "expectedLessonId": "lesson-seed-4",
+      "isNegative": false,
+      "kind": "hard_paraphrase"
+    },
+    {
+      "query": "supplier corporate organization title clipped short",
+      "expectedLessonId": "lesson-seed-5",
+      "isNegative": false,
+      "kind": "hard_paraphrase"
+    },
+    {
+      "query": "calendar timestamp emitted in British order rather than international standard",
+      "expectedLessonId": "lesson-seed-6",
+      "isNegative": false,
+      "kind": "hard_paraphrase"
+    },
+    {
+      "query": "remittance window stipulations absent from transaction payload",
+      "expectedLessonId": "lesson-seed-7",
+      "isNegative": false,
+      "kind": "hard_paraphrase"
+    },
+    {
+      "query": "repeating identifier produced when ingesting refund adjustment slips",
+      "expectedLessonId": "lesson-seed-8",
+      "isNegative": false,
+      "kind": "hard_paraphrase"
     },
     {
       "query": "invoice_id",
       "expectedLessonId": "lesson-seed-1",
-      "isNegative": false
+      "isNegative": false,
+      "kind": "exact_token"
     },
     {
-      "query": "Why did create_invoice omit the required invoiceId parameter?",
-      "expectedLessonId": "lesson-seed-1",
-      "isNegative": false
-    },
-    {
-      "query": "Missing currency code USD in extracted invoice line arguments",
-      "expectedLessonId": "lesson-seed-2",
-      "isNegative": false
-    },
-    {
-      "query": "Numeric amount passed as string type causing schema validation rejection",
-      "expectedLessonId": "lesson-seed-3",
-      "isNegative": false
-    },
-    {
-      "query": "Tax calculation not summed into grand total before tool execution",
-      "expectedLessonId": "lesson-seed-4",
-      "isNegative": false
-    },
-    {
-      "query": "Vendor legal business name cut off or truncated",
-      "expectedLessonId": "lesson-seed-5",
-      "isNegative": false
-    },
-    {
-      "query": "Invoice date returned in DD/MM/YYYY instead of ISO 8601",
-      "expectedLessonId": "lesson-seed-6",
-      "isNegative": false
-    },
-    {
-      "query": "Payment terms Net 30 missing from metadata",
+      "query": "net_30",
       "expectedLessonId": "lesson-seed-7",
-      "isNegative": false
+      "isNegative": false,
+      "kind": "exact_token"
     },
     {
-      "query": "Duplicate invoice number collision when parsing credit memo",
-      "expectedLessonId": "lesson-seed-8",
-      "isNegative": false
+      "query": "ISO-8601",
+      "expectedLessonId": "lesson-seed-6",
+      "isNegative": false,
+      "kind": "exact_token"
     },
     {
-      "query": "PostgreSQL connection pool exhausted on port 5432 with max clients reached",
+      "query": "Accounts payable batch remittance ledger reconciliation succeeded with balanced ledger",
       "expectedLessonId": null,
-      "isNegative": true
+      "isNegative": true,
+      "kind": "negative"
     },
     {
-      "query": "CSS flexbox z-index overflow on mobile Safari sticky navigation bar",
+      "query": "Vendor billing address zip code updated in master customer relationship database",
       "expectedLessonId": null,
-      "isNegative": true
+      "isNegative": true,
+      "kind": "negative"
     },
     {
-      "query": "Kubernetes ingress SSL certificate expired during mutual TLS handshake",
+      "query": "Sales tax percentage rate configured for New York state jurisdiction",
       "expectedLessonId": null,
-      "isNegative": true
+      "isNegative": true,
+      "kind": "negative"
     },
     {
-      "query": "Redis cluster memory eviction policy allkeys-lru triggered unexpected key loss",
+      "query": "Monthly currency exchange rates fetched from European Central Bank endpoint",
       "expectedLessonId": null,
-      "isNegative": true
+      "isNegative": true,
+      "kind": "negative"
+    },
+    {
+      "query": "Fiscal calendar year-end closing audit logs archived to cold storage",
+      "expectedLessonId": null,
+      "isNegative": true,
+      "kind": "negative"
+    },
+    {
+      "query": "Credit memo authorization signature verified by compliance auditor",
+      "expectedLessonId": null,
+      "isNegative": true,
+      "kind": "negative"
+    },
+    {
+      "query": "Invoice PDF OCR preprocessing step completed without contrast enhancement",
+      "expectedLessonId": null,
+      "isNegative": true,
+      "kind": "negative"
     }
   ]
 }
-
