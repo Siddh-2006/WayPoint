@@ -16,6 +16,7 @@
     "gate:6": "tsx --env-file=.env scripts/src/gate6.ts",
     "gate:7": "tsx --env-file=.env scripts/src/gate7.ts",
     "gate:8": "tsx --env-file=.env scripts/src/gate8.ts",
+    "gate:9": "tsx --env-file=.env scripts/src/gate9.ts",
     "db:init": "tsx scripts/src/init-db.ts",
     "test": "pnpm -r test"
   },

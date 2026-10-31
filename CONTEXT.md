@@ -29,7 +29,7 @@ The demo agent is **simulated** and is labeled as such in the README.
 | Simulated invoice agent + SDK | 6 | ✅ Done |
 | Contract mining + violations | 7 | ✅ Done |
 | Live dashboard via change stream | 8 | ✅ Done |
-| Freeze-replay grid + statistics | 9 | ⬜ Pending |
+| Freeze-replay grid + statistics | 9 | ✅ Done |
 | Structural trace diff | 10 | ⬜ Pending |
 | Lessons, embeddings, vector search, preflight | 11 | ⬜ Pending |
 | LLM narration (compact summary) | 12 | ⬜ Pending |
@@ -102,6 +102,11 @@ Connection string: `mongodb://localhost:27017/?directConnection=true` (local).
 | D11 | BSON number type mapping | JS `number` matches `double`, `int`, `long`, `decimal` from Mongo mining |
 | D12 | Zero secrets in client browser | Demo triggers execute server-side; 0 client keys |
 | D13 | Public read for demo projects | `READ_PUBLIC_PROJECTS` allows guest UI viewing without key exposure |
+| D14 | Generic change units & pure applyUnits | Engine never hardcodes units; derives from context diff |
+| D15 | Honest statistics with Wilson intervals | Overlapping bounds yield "inconclusive" verdict rather than speculation |
+| D16 | Replay isolation | Replay writes 0 documents to runs/events; 0 fake incidents |
+| D17 | Replay cache memoization | Unique keys in `replayCache` guarantee 0 new agent calls on repeated experiments |
+| D18 | Full-stack Docker image | Multi-stage build compiles `web` and `server`, serving SPA directly |
 
 ---
 
@@ -116,6 +121,7 @@ Connection string: `mongodb://localhost:27017/?directConnection=true` (local).
 - [x] Gate 6: Simulated agent, corpus & SDK (7 checks pass)  ✅ 2026-10-31
 - [x] Gate 7: Contract mining, violations & detector (8 checks pass)  ✅ 2026-10-31
 - [x] Gate 8: React dashboard & Live SSE stream (5 checks pass)  ✅ 2026-10-31
+- [x] Gate 9: Factorial replay grid & Shapley attribution (11 checks pass)  ✅ 2026-10-31
 
 ---
 
@@ -131,6 +137,8 @@ Connection string: `mongodb://localhost:27017/?directConnection=true` (local).
 | Schema 121 error on `deployments` upsert | `rev` required integer in validator | Made `rev` optional on upsert, added `$setOnInsert: { rev: 1 }` | ✅ Fixed |
 | Gate 7 false positives on fresh runs | JS `number` was rejected by BSON `double` contract type | Mapped JS `number` to accept `double`, `int`, `long`, `decimal` | ✅ Fixed |
 | Gate 8 secret in bundle audit | Hardcoded API key in client component | Removed client key; execute runs server-side via `/v1/demo/run` | ✅ Fixed |
+| Fastify empty body error on POST replay | Fastify 5 rejects empty body with Content-Type application/json | Passed `{}` body in POST replay calls | ✅ Fixed |
+| Number(input.id) yielded NaN | Invoice IDs are alphanumeric ('INV-2026-001') | Parsed integer digits from ID string | ✅ Fixed |
 
 ---
 
@@ -157,6 +165,6 @@ Key runtime dependencies:
 
 ## Next Step
 
-**Prompt 9: Freeze-replay grid with statistics**
-- Factorial $2^k$ replay experiment isolating model vs prompt vs config.
-- Shapley attribution to cleanly apportion blame for silent interaction bugs.
+**Prompt 10: Structural trace diff**
+- Trace alignment and step-by-step divergence localization.
+- Finding the exact step and tool call where a good run and a failing run bifurcate.

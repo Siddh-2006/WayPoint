@@ -18,6 +18,7 @@ import { demoRoutes } from './demo/routes.js';
 import { contractRoutes } from './contracts/routes.js';
 import { incidentRoutes } from './detect/routes.js';
 import { streamRoutes } from './stream/routes.js';
+import { replayRoutes } from './replay/routes.js';
 import { startDetector, stopDetector } from './detect/detector.js';
 import * as dbInit from './db/init.js';
 import fastifyStatic from '@fastify/static';
@@ -68,6 +69,7 @@ await app.register(demoRoutes);
 await app.register(contractRoutes);
 await app.register(incidentRoutes);
 await app.register(streamRoutes);
+await app.register(replayRoutes);
 
 // ─── Static Files & SPA Fallback ─────────────────────────────────────────────
 
@@ -96,6 +98,15 @@ async function start(): Promise<void> {
   // Idempotent: safe to call on every boot.
   // Search index creation is best-effort — see initDb() for details.
   await dbInit.initDb(getDb());
+
+  // Mark any orphaned 'running' experiments as failed due to restart (no zombie states)
+  await getDb()
+    .collection('experiments')
+    .updateMany(
+      { status: 'running' },
+      { $set: { status: 'failed', reason: 'restarted', endedAt: new Date() } },
+    );
+
   // Start real-time incident detector on runs change stream
   await startDetector(getDb());
 

@@ -30,7 +30,9 @@ RUN pnpm install --frozen-lockfile
 COPY tsconfig.base.json ./
 COPY server/tsconfig.json ./server/
 COPY server/src ./server/src
+COPY web ./web
 
+RUN pnpm --filter @waypoint/web build
 RUN pnpm --filter @waypoint/server build
 
 # ─── Stage 2: production image ────────────────────────────────────────────────
@@ -54,6 +56,7 @@ RUN pnpm install --frozen-lockfile --prod
 
 # Copy compiled output from builder.
 COPY --from=builder /app/server/dist ./server/dist
+COPY --from=builder /app/web/dist ./web/dist
 
 # Run as non-root (node user, uid 1000, built into the official image).
 USER node

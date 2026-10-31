@@ -83,6 +83,12 @@ const schema = z.object({
         .filter(Boolean),
     ),
   MAX_SSE_CLIENTS: z.coerce.number().int().positive().default(50),
+
+  // Freeze-Replay Experiment Grid & Shapley Attribution
+  REPLAY_SAMPLES: z.coerce.number().int().positive().default(3),
+  EXPERIMENT_MAX_FULL_K: z.coerce.number().int().positive().default(4),
+  EXPERIMENT_PERM_SAMPLES: z.coerce.number().int().positive().default(200),
+  EXPERIMENT_EPSILON: z.coerce.number().min(0).max(1).default(0.05),
 });
 
 // ─── Parse ────────────────────────────────────────────────────────────────────

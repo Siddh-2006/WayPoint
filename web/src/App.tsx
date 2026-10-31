@@ -13,6 +13,7 @@ import {
 import { LivePage, type RunItem } from './pages/LivePage.js';
 import { IncidentPage, type IncidentItem } from './pages/IncidentPage.js';
 import { ContractsPage } from './pages/ContractsPage.js';
+import { ExperimentsPage } from './pages/ExperimentsPage.js';
 import { ComingSoonPage } from './pages/ComingSoonPage.js';
 
 export default function App() {
@@ -276,15 +277,7 @@ export default function App() {
           <Route path="/" element={<LivePage runs={runs} sseStatus={sseStatus} />} />
           <Route path="/incidents" element={<IncidentPage incidents={incidents} />} />
           <Route path="/contracts" element={<ContractsPage />} />
-          <Route
-            path="/experiments"
-            element={
-              <ComingSoonPage
-                title="Freeze-Replay Grid & Shapley Attribution"
-                description="Simultaneous 2^k permutation testing with Shapley value attribution to identify interaction culprits across model, prompt, and config."
-              />
-            }
-          />
+          <Route path="/experiments" element={<ExperimentsPage />} />
           <Route
             path="/lessons"
             element={
