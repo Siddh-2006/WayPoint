@@ -144,6 +144,7 @@ type IndexSpec = { collection: string; key: Document; options?: Document };
 
 const indexes: IndexSpec[] = [
   { collection: 'events',      key: { projectId: 1, runId: 1, seq: 1 },             options: { name: 'events_project_run_seq' } },
+  { collection: 'events',      key: { runId: 1, seq: 1 },                           options: { name: 'events_run_seq' } },
   { collection: 'events',      key: { projectId: 1, ts: -1 },                       options: { name: 'events_project_ts' } },
   { collection: 'runs',        key: { runId: 1 },                                    options: { unique: true, name: 'runs_runId_unique' } },
   { collection: 'runs',        key: { projectId: 1, contextHash: 1, startedAt: -1 }, options: { name: 'runs_project_hash_started' } },

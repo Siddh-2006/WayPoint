@@ -71,22 +71,24 @@ Status labels: **Built** means it exists and its gate passed. **Planned** means 
 - A visible label marks the agent as simulated
 - **Feeds into:** narration, which makes the same facts easy to read.
 
-## 9. Evidence-cited narration (Planned)
+## 9. Evidence-cited narration (Built)
 - A language model writes a short readable explanation from a compact computed summary
-- Each sentence must cite the evidence it relies on
-- Works with a local model or a hosted one through configuration
+- Each sentence must cite the evidence it relies on (`[F1]`, `[F2]`, etc.)
+- Strict citation validator drops unverified facts and ungrounded numbers
+- Works with a local model or a hosted one through configuration, with deterministic grounded fallback
 - **Feeds into:** agent access, where the same summary is returned to coding agents.
 
-## 10. Agent access through MCP (Planned)
-- Exposes preflight, explain and recall as tools that coding agents can call before deploying
+## 10. Agent access through MCP (Built)
+- Exposes `preflight_change`, `explain_incident`, `recall_lessons`, `list_incidents`, and `get_deployment_status` as tools via stdio
+- Allows autonomous coding agents in Claude Desktop, Cursor, Antigravity, and CLI harnesses to run preflight verification before shipping
 - **Feeds into:** extras, where agents can trigger the same safety checks automatically.
 
-## 11. Extras if time allows (Planned)
-- `explain()` panel showing index use for each diagnosis query
-- Change-point detection to timestamp when a regression began
-- Output-drift detection with embeddings
-- Sequential canary test and automatic rollback
-- Structural trace comparison showing the first step where two runs diverge
+## 11. Extras & Diagnostics (Built & Planned)
+- **Built:** `explain()` panel showing index use (`IXSCAN`), 0 `COLLSCAN`, and bounded inspected documents for all 4 diagnosis queries
+- Planned: Change-point detection to timestamp when a regression began
+- Planned: Output-drift detection with embeddings
+- Planned: Sequential canary test and automatic rollback
+- Planned: Structural trace comparison showing the first step where two runs diverge
 
 ---
 

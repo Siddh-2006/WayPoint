@@ -93,7 +93,12 @@ pnpm gate:7   # Contract mining & incident detection
 pnpm gate:8   # React dashboard & SSE change streams
 pnpm gate:9   # Factorial replay grid & Shapley attribution (precision <= 1e-15)
 pnpm gate:10  # Episodic memory lessons, hybrid recall & preflight guard
+pnpm gate:10b # Real vector recall, honest score typing & hard paraphrase evaluation
+pnpm gate:11  # Evidence-cited LLM narration, MCP server & query explain panel
 ```
+
+### 5. Model Context Protocol (MCP) Server
+Waypoint includes a standard I/O (stdio) MCP server allowing coding agents in Claude Desktop, Cursor, and Antigravity to run preflight verification and query lessons autonomously. See [docs/MCP.md](docs/MCP.md).
 
 ---
 
