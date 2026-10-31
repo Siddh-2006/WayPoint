@@ -146,3 +146,4 @@ export async function preflightRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 }
+

@@ -294,3 +294,4 @@ export function LessonsPage() {
     </div>
   );
 }
+

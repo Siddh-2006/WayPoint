@@ -24,7 +24,7 @@ export interface LessonDoc {
   culprit: CulpritSummary;
   changeTypes: string[];
   fix: string;
-  note?: string | undefined;
+  note?: string;
   source: 'incident' | 'seed';
   status: 'active' | 'corrected' | 'expired';
   embedding: number[];
@@ -34,8 +34,8 @@ export interface LessonDoc {
 
 export interface ResolveIncidentInput {
   fix: string;
-  note?: string | undefined;
-  source?: 'incident' | 'seed' | undefined;
+  note?: string;
+  source?: 'incident' | 'seed';
 }
 
 export async function resolveIncident(
@@ -159,7 +159,7 @@ export async function resolveIncident(
 export async function patchLesson(
   db: Db,
   lessonId: string,
-  patch: { status?: 'active' | 'corrected' | 'expired' | undefined; note?: string | undefined },
+  patch: { status?: 'active' | 'corrected' | 'expired'; note?: string },
 ): Promise<LessonDoc | null> {
   const lessonsCol = db.collection<LessonDoc>('lessons');
   const update: Record<string, unknown> = {};
@@ -181,3 +181,4 @@ export async function listLessons(db: Db, projectId: string): Promise<LessonDoc[
     .sort({ createdAt: -1 })
     .toArray();
 }
+

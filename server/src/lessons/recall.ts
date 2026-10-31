@@ -56,8 +56,8 @@ export async function recallLessons(
   options: {
     projectId: string;
     query: string;
-    minScore?: number | undefined;
-    limit?: number | undefined;
+    minScore?: number;
+    limit?: number;
   },
 ): Promise<RecallResponse> {
   const { projectId, query } = options;
@@ -303,3 +303,4 @@ function cosineSimilarity(a: number[], b: number[]): number {
   if (normA === 0 || normB === 0) return 0;
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
+

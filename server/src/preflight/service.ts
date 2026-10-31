@@ -16,7 +16,7 @@
 import type { Db } from 'mongodb';
 import { config } from '../config.js';
 import { diffContexts, type ContextChange } from '../contexts/diff.js';
-import { hashContext, type ContextData } from '../contexts/hash.js';
+import type { ContextData } from '../contexts/hash.js';
 import { extractUnits } from '../replay/units.js';
 import { getCorpus, type ReplayCellStats } from '../replay/engine.js';
 import { runAgent } from '../demo/invoice-agent.js';
@@ -107,14 +107,13 @@ export async function runPreflight(
   const samples = config.REPLAY_SAMPLES;
   const totalEvals = corpus.length * samples;
   let violationsCount = 0;
-  const proposedHash = hashContext(proposedContext);
 
   for (let idx = 0; idx < corpus.length; idx++) {
     const input = corpus[idx]!;
     for (let s = 1; s <= samples; s++) {
       const numId = parseInt(input.id.replace(/\D/g, ''), 10) || (idx + 1);
       const seed = numId * 1000 + s;
-      const cacheKey = `replay:${proposedHash}:${input.id}:${seed}:v1`;
+      const cacheKey = `replay:preflight:${input.id}:${seed}:v1`;
 
       let isViolation = false;
       const cached = await replayCacheCol.findOne({ key: cacheKey });
@@ -241,3 +240,4 @@ export async function runPreflight(
     timestamp: new Date().toISOString(),
   };
 }
+

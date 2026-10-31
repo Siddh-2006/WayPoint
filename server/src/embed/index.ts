@@ -41,3 +41,4 @@ export function getEmbeddingProvider(): EmbeddingProvider {
 export function setEmbeddingProviderForTesting(provider: EmbeddingProvider | null): void {
   providerInstance = provider;
 }
+

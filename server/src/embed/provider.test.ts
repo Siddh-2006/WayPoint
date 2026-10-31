@@ -59,3 +59,4 @@ describe('Embedding Provider & Dimension Verification', () => {
     await expect(verifyEmbeddingDimension(fakeValidProvider)).resolves.not.toThrow();
   });
 });
+

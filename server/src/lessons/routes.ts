@@ -14,7 +14,6 @@ import { getDb } from '../db/client.js';
 import { config } from '../config.js';
 import { resolveIncident, patchLesson, listLessons } from './service.js';
 import { recallLessons } from './recall.js';
-import { toObjectIdOrString } from '../replay/engine.js';
 
 function isAuthorized(apiKey: string | undefined): boolean {
   if (!apiKey) return false;
@@ -56,9 +55,8 @@ export async function lessonRoutes(app: FastifyInstance): Promise<void> {
     const apiKey = req.headers['x-api-key'] as string | undefined;
 
     // Check incident to see which project it belongs to
-    const objId = toObjectIdOrString(id);
     const inc = await db.collection('incidents').findOne({
-      $or: [{ _id: objId }, { _id: id as any }, { incidentId: id }],
+      $or: [{ _id: id as any }, { incidentId: id }],
     });
     if (!inc) {
       return reply.code(404).send({ error: 'Incident not found' });
@@ -133,3 +131,4 @@ export async function lessonRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(response);
   });
 }
+

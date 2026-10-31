@@ -22,7 +22,7 @@ export interface VoyageConfig {
   apiKey: string;
   model: string;
   dim: number;
-  baseUrl?: string | undefined;
+  baseUrl?: string;
 }
 
 export interface OllamaConfig {
@@ -202,3 +202,4 @@ export async function verifyEmbeddingDimension(provider: EmbeddingProvider): Pro
     throw new EmbeddingDimensionMismatchError(provider.dim, actualDim, provider.name);
   }
 }
+
