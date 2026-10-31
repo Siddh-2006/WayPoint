@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import { config } from '../config.js';
 import { getDb } from '../db/client.js';
 import { hashContext, type ContextData } from '../contexts/hash.js';
 import { runAgent, type InvoiceInput } from './invoice-agent.js';
@@ -29,6 +30,7 @@ import {
   checkRateLimit,
   cleanupExpiredSandboxes,
   isPublicDemoProject,
+  assertSandboxCapacity,
 } from './sandbox.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -129,6 +131,17 @@ export async function demoRoutes(app: FastifyInstance): Promise<void> {
   const runsCol = db.collection<StoredRunDoc>('runs');
   const eventsCol = db.collection<StoredEventDoc>('events');
 
+  // GET /v1/demo/runs — fetch recent runs for initial dashboard hydration
+  app.get<{ Querystring: { projectId?: string } }>('/v1/demo/runs', async (req) => {
+    const pId = req.query.projectId || 'demo';
+    const recent = await runsCol
+      .find({ projectId: { $regex: new RegExp(`^${pId}`) } })
+      .sort({ startedAt: -1 })
+      .limit(50)
+      .toArray();
+    return { runs: recent.reverse() };
+  });
+
   // POST /v1/demo/run — public/internal demo trigger (browser needs no key)
   app.post('/v1/demo/run', async (req, reply) => {
     const parseResult = ScenarioBodySchema.safeParse(req.body);
@@ -146,6 +159,20 @@ export async function demoRoutes(app: FastifyInstance): Promise<void> {
       targetProjectId = derived ? derived.projectId : 'demo';
     }
     const projectId = targetProjectId;
+
+    // Safety: only permit demo or demo-* sandboxes
+    if (!projectId.startsWith('demo-') && projectId !== 'demo') {
+      return reply.code(403).send({ error: 'Forbidden: demo routes only permit demo- sandboxes' });
+    }
+
+    if (projectId.startsWith('demo-')) {
+      const hasCap = await assertSandboxCapacity(db, projectId);
+      if (!hasCap) {
+        return reply.code(429).send({ error: `Max concurrent sandboxes limit (${config.MAX_SANDBOXES}) reached` });
+      }
+    }
+
+    const { scenarioId } = parseResult.data;
     const scenario = SCENARIOS[scenarioId];
     const contextData = scenario.context;
 
@@ -309,6 +336,12 @@ export async function demoRoutes(app: FastifyInstance): Promise<void> {
     // 3. Concurrency lock per sandbox
     if (!acquireResetLock(projectId)) {
       return reply.code(409).send({ error: 'Sandbox reset already in progress for this session' });
+    }
+
+    const hasCap = await assertSandboxCapacity(db, projectId);
+    if (!hasCap) {
+      releaseResetLock(projectId);
+      return reply.code(429).send({ error: `Max concurrent sandboxes limit (${config.MAX_SANDBOXES}) reached` });
     }
 
     try {

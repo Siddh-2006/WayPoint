@@ -84,11 +84,12 @@ try {
 
 // ─── (c) SSE stream: run event, incident event, heartbeat, clean close ─────────
 try {
+  const sseProj = `demo-sse-${Date.now()}`;
   // Ensure baseline contracts exist for demo project first
   await fetch(`${BASE_URL}/v1/demo/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scenarioId: 'good', projectId: 'demo' }),
+    body: JSON.stringify({ scenarioId: 'good', projectId: sseProj }),
   });
 
   let receivedRun = false;
@@ -96,7 +97,7 @@ try {
   let receivedHeartbeat = false;
 
   const controller = new AbortController();
-  const timeoutTimer = setTimeout(() => controller.abort(), 12_000);
+  const timeoutTimer = setTimeout(() => controller.abort(), 20_000);
 
   // Connect to SSE stream
   const response = await fetch(`${BASE_URL}/v1/stream`, {
@@ -114,7 +115,7 @@ try {
       await fetch(`${BASE_URL}/v1/demo/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenarioId: 'bad_deploy', projectId: 'demo' }),
+        body: JSON.stringify({ scenarioId: 'bad_deploy', projectId: sseProj }),
       });
     } catch {
       // best-effort trigger

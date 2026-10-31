@@ -121,6 +121,10 @@ export async function preflightRoutes(app: FastifyInstance): Promise<void> {
 
     const { scenarioId, proposedContext, projectId } = parseResult.data;
 
+    if (!projectId.startsWith('demo-') && projectId !== 'demo') {
+      return reply.code(403).send({ error: 'Forbidden: demo routes only permit demo- sandboxes' });
+    }
+
     const targetContext =
       proposedContext ?? (scenarioId ? DEMO_SCENARIO_CONTEXTS[scenarioId] : undefined);
 

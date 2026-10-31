@@ -98,6 +98,8 @@ async function main() {
       results.push({ gate: g.id, status: 'PASS', durationSec });
     } else {
       console.log(`FAIL (${durationSec}s)`);
+      if (res.stderr) console.error(res.stderr.slice(-500));
+      else if (res.stdout) console.log(res.stdout.slice(-500));
       results.push({ gate: g.id, status: 'FAIL', durationSec, notes: `Exit code ${res.code}` });
       anyFailed = true;
       // Do not stop — run as many as possible or stop on fail
@@ -131,3 +133,4 @@ main().catch((err) => {
   console.error('[GATE:ALL FATAL]', err);
   process.exit(1);
 });
+

@@ -1,127 +1,247 @@
-# Waypoint
+# Waypoint — Failure Attribution & Episodic Preflight Guard for LLM Agents
 
-> **A flight recorder for software changes.**  
-> Waypoint records run histories into MongoDB, detects silent failures (HTTP-200-but-wrong outcomes) caused by invisible changes (model, prompt, configuration, tools, dependencies), isolates the culprit change via factorial replay experiments and Shapley attribution, remembers past fixes as episodic memory lessons, and warns before future regressions.
+Waypoint is a flight recorder and regression guard for AI agents. When a production agent silently breaks (returning HTTP 200 while emitting corrupted tool calls or invalid schemas), Waypoint answers three critical questions:
+1. **What changed?** Content-hashed context snapshots pinpoint exact diffs in model, system prompt, tool schemas, and configurations.
+2. **Which change caused the breakage?** Factorial replay experiments evaluate every subset of changes across test inputs, computing Shapley blame shares to isolate culprits even when model and prompt changes interact.
+3. **Have we seen this before?** Episodic memory recalls past incident resolutions using semantic vector search and lexical token matching. When a developer proposes a new deploy, preflight rechecks the change and stops repeat mistakes before they reach production.
 
 ---
 
-## Architecture at a Glance
+## 1. Live Demo & How to Test in 3 Minutes
+
+- **Live URL**: `https://waypoint-production-c529.up.railway.app` *(or your active deployment URL)*
+- **Local Dashboard**: `http://localhost:3000/guide`
+- **Authentication**: **No login required.** Every visitor receives an isolated per-session sandbox (`demo-<uuid>`).
+
+### The 3-Minute Test Path (Interactive Demo Story)
+
+Open **`/guide`** in your browser and click through steps 1 to 6:
+
+1. **Step 1: Reset Sandbox**  
+   *What it does*: Creates a clean, isolated project sandbox (`demo-...`) and seeds 12 baseline runs.  
+   *What you see*: Success badge: `Sandbox reset! Seeded 12 baseline runs`.
+
+2. **Step 2: Run Baseline**  
+   *What it does*: Executes 20 invoice extraction runs using model `v1` and a strict camelCase prompt rule. Mines structural invariants (`invoiceId` string required).  
+   *What you see*: `20/20 runs passed. Contract mined for create_invoice`.
+
+3. **Step 3: Trigger Bad Deploy**  
+   *What it does*: Upgrades the agent to model `v2` and removes the camelCase prompt rule. Triggers silent failures (snake_case `invoice_id` returned with HTTP 200).  
+   *What you see*: Real-time change stream flags an incident. Red violation cards appear on the Live feed.
+
+4. **Step 4: Factorial Replay Grid**  
+   *What it does*: Replays test corpus inputs across all $2^2 = 4$ combinations (model $\times$ prompt) in an ephemeral sandbox.  
+   *What you see*: Evaluates 4 cells. Assigns 50% blame share to the model bump and 50% blame share to the prompt edit with 0% to decoy config.
+
+5. **Step 5: Resolve Incident & Save Lesson**  
+   *What it does*: Marks the incident resolved, recording root-cause symptoms, fix descriptions, and culprit axes into MongoDB episodic memory.  
+   *What you see*: Lesson saved with source `incident`.
+
+6. **Step 6: Preflight Check Proposed v3 (The Finale)**  
+   *What it does*: Simulates a developer proposing model `v3` without the camelCase rule. Waypoint replays the change, queries past memory, and intercepts the deployment.  
+   *What you see*: **`Verdict: BLOCK`**. Cites the lesson saved in Step 5 with: `Structural: same rule (unexpected_similar_key) on key "invoiceId" and axes [model, prompt]`.
+
+> [!NOTE]
+> **Embedding Rate Limits**: If a note saying *"semantic search temporarily unavailable"* appears, the system has gracefully fallen back to in-app lexical token search due to the Voyage AI 3 requests/minute free trial rate limit. Ranking and structural preflight guards continue to function normally.
+
+---
+
+## 2. What is Simulated (Full Transparency)
+
+To ensure 100% reproducible evaluations for hackathon judges with zero external API dependencies or nondeterministic LLM flakiness:
+- **Simulated Invoice Extractor**: The agent in `demo/invoice-agent/agent.ts` is a deterministic simulation driven by a seeded pseudo-random number generator (Mulberry32).
+- **Planted Bug**: The bug (using snake_case `invoice_id` instead of `invoiceId`) triggers deterministically **only** when `model === 'v2'` (or `'v3'`) **and** the prompt lacks `"Always use camelCase keys"`.
+- **Seeded Historical Lessons**: Sandboxes include two historical example lessons to illustrate memory search; your actual incident lesson saved in Step 5 takes precedence.
+
+---
+
+## 3. What Waypoint Does & Does Not Do (Scope)
+
+See [`docs/01_PROBLEMS.md`](./docs/01_PROBLEMS.md) for the complete problem taxonomy.
+
+### What Waypoint Does
+- **Records Run Histories**: Content-hashed context snapshots and structured tool execution traces.
+- **Mines Invariant Contracts**: Automatically infers required keys and value types from a chosen baseline version.
+- **Detects Silent Regressions**: Real-time sliding-window failure rate monitoring via MongoDB Change Streams.
+- **Fair Blame Attribution**: Cooperative game-theoretic Shapley credit assignment over factorial replay grids.
+- **Episodic Regression Guard**: Hybrid semantic vector search + lexical matching to block repeat failures before deployment.
+
+### What Waypoint Does NOT Do
+- **No Autonomous Code Patching**: Waypoint does not automatically modify or patch application code; it is a detection, diagnostic, and review tool with a human in the loop.
+- **No Automated Canary Rollbacks**: Waypoint is not an infrastructure orchestrator (no Kubernetes/traffic shifting built).
+- **No Continuous Unsupervised Mining**: Contracts are mined from an explicit baseline version, not continuously from unvetted live traffic.
+- **Not Arbitrary App Replay**: The replay engine is purpose-built and calibrated for structured agent tool calls.
+
+---
+
+## 4. System Architecture & Data Flow
 
 ```
-  App / Simulated Agent ──(SDK / POST /v1/events)──► Fastify Server
-                                                        │ Validate & redact
-                                                        ▼
-                                                   MongoDB (Atlas)
-       events · runs · contexts · contracts · incidents · experiments · lessons
-                                                        │
-                 ┌───────────── Change Streams ─────────┤
-                 ▼                                      ▼
-           Incident Detector                    Live SSE Stream
-       (violation rate window)                         │
-                 │                                      ▼
-                 ▼                               React Dashboard
-           Replay Engine ──► Shapley + Statistics
-                 │
-                 ▼
-           Episodic Lessons (Vector + Text RRF) ──► Preflight Regression Guard
+  Simulated Agent / SDK ──(POST /v1/events)──► Fastify Server (Port 3000)
+                                                    │ Validate & redact secrets
+                                                    ▼
+                                               MongoDB (Atlas M0)
+                                      events · contexts · contracts · incidents
+                                                    │
+                             ┌─────────────── Change Streams ───────────────┐
+                             ▼                                              ▼
+                     Incident Detector                              Live SSE Fan-Out
+                 (sliding-window thresholds)                                │
+                             │                                              ▼
+                             ▼                                       Web Dashboard
+                      Replay Sandbox                                (React SPA at /)
+                 (factorial grid evaluation)
+                             │
+                             ▼
+                      Shapley Engine ──► Blame Shares (Model / Prompt / Config)
+                             │
+                             ▼
+                      Episodic Memory ──► Preflight Regression Guard (BLOCK / PASS)
+                   ($vectorSearch + RRF)
 ```
 
-- **Deterministic Core**: Invariants and violations are detected via deterministic code and MongoDB aggregations (`$match`, `$project`, `$objectToArray`, `$unwind`, `$group`), never by LLM guessing.
-- **Fair Blame Sharing**: Game-theoretic Shapley attribution over factorial replay grids with Wilson score confidence intervals and interaction effect detection.
-- **Episodic Memory**: Resolved incidents become searchable lessons with hybrid vector cosine and lexical token search via Reciprocal Rank Fusion ($k=60$).
-- **Preflight Guard**: Evaluates proposed context diffs against live baselines and historical lessons before deployment (`block`, `warn`, `pass`).
-- **Simulated Demo**: Includes an invoice extraction agent with 20 seeded test cases and planted multi-variable regressions (`bad_deploy`), clearly labeled as simulated.
+### Data Flow in 6 Lines
+1. The agent executes tasks and streams tool calls through the Waypoint SDK to `POST /v1/events`.
+2. Fastify validates payloads against Zod schemas, deeply redacts secrets, and inserts records idempotently into MongoDB.
+3. MongoDB Change Streams feed real-time run telemetry to the detector, which tracks violation rates against mined contracts.
+4. When failure rates cross threshold, an incident is created and a $2^k$ factorial replay grid is executed across test inputs.
+5. The replay engine calculates Shapley values, apportioning blame shares across prompt, model, and configuration changes.
+6. Resolved incidents become episodic lessons; preflight checks replay candidate updates and block repeat regressions.
 
 ---
 
-## Documentation
+## 5. MongoDB Features Used
 
-Full architectural specifications, problem statements, and implementation references are available in [`docs/`](./docs/):
-
-| Document | Description |
-|---|---|
-| [**00 Overview**](./docs/00_OVERVIEW.md) | Plain-language summary of Change Amnesia, the 5-step lifecycle, and design choices. |
-| [**01 Problems**](./docs/01_PROBLEMS.md) | Ten real-world silent failure scenarios, what Waypoint solves, and explicit non-goals. |
-| [**02 Solutions**](./docs/02_SOLUTIONS.md) | How the Record $\to$ Detect $\to$ Explain $\to$ Remember $\to$ Warn pipeline solves each problem. |
-| [**03 Technical Approach**](./docs/03_TECHNICAL_APPROACH.md) | System architecture, content-hashed contexts, Shapley mathematics, and reliability engineering. |
-| [**04 MongoDB Usage**](./docs/04_MONGODB_USAGE.md) | Complete breakdown of MongoDB features used: flexible schemas, change streams, aggregations, vector search, TTL, and partial unique indexes. |
-| [**05 Features**](./docs/05_FEATURES.md) | Feature-by-feature status breakdown: Built (1–8) and Planned (9–11). |
+| Feature | Where Used | Purpose |
+|---|---|---|
+| **Flexible Schema Documents** | `events`, `contexts`, `contracts` | Stores polymorphic LLM tool arguments, multi-turn contexts, and dynamic JSON schema invariants without schema migrations. |
+| **Change Streams (`$watch`)** | `server/src/detect/detector.ts`, `server/src/stream/routes.ts` | Real-time reactive incident detection on `runs` and shared singleton SSE streaming to active dashboard sessions. |
+| **Aggregation Pipelines** | `server/src/contracts/mine.ts` | Mines structural invariants (`$match`, `$project`, `$objectToArray`, `$unwind`, `$group`) to extract required keys and types from baseline runs. |
+| **Vector Search (`$vectorSearch`)** | `server/src/lessons/recall.ts` | 1024-dimension cosine similarity search over episodic memory lessons using Voyage-4 embeddings. |
+| **In-App Lexical Matching + RRF** | `server/src/lessons/recall.ts` | Exact identifier and token overlap matcher combined with vector search via Reciprocal Rank Fusion ($k=60$). |
+| **Partial Unique Indexes** | `server/src/db/init.ts` | `{ projectId: 1, badHash: 1 }` with partial filter `{ status: 'open' }` guarantees exactly one open incident per regression. |
+| **Compound B-Tree Indexes** | `events` (`{ projectId: 1, runId: 1, seq: 1 }`) | Enables zero-in-memory-sort index scans (`IXSCAN`) for chronological run reconstruction. |
+| **TTL Indexes** | `meta_sandboxes` (`{ expiresAt: 1 }`, expireAfterSeconds: 0) | Automatically expires and garbage-collects transient guest sandbox data after 30 minutes. |
 
 ---
 
-## Quick Start
+## 6. Measured Benchmark & Gate Results
 
-### 1. Prerequisites
+All metrics are sourced directly from [`docs/MEASURED_FACTS.md`](./docs/MEASURED_FACTS.md):
+
+| Category | Test Description | Measured Result |
+|---|---|---|
+| **Ingestion Concurrency** | 1,000 simultaneous duplicate HTTP events (`gate:3`) | **Exactly 1 document stored**, 999 `duplicate_ignored` |
+| **Context Concurrency** | 200 concurrent context registrations (`gate:5`) | **Exactly 1 document stored**, 1 created, 199 deduplicated |
+| **Attribution Accuracy** | Factorial replay grid on model $\times$ prompt (`gate:9`) | Model blame: **50.0%**, Prompt blame: **50.0%**, Decoy config: **0.0%** |
+| **Shapley Efficiency** | $\lvert \sum \phi_i - [v(N) - v(\emptyset)] \rvert$ (`gate:9`) | **$1.11 \times 10^{-16}$** (strict mathematical efficiency) |
+| **Semantic Recall** | Held-out evaluation set ($n = 12$ split, `gate:10b`) | Rank-only Hit@3: **100%** (7/7); Strong-tier Hit@3: **57.1%** (4/7) |
+| **False Warnings** | Negative control queries on held-out split (`gate:10b`) | **0.0% false warnings** (0/5 false positives on non-incident queries) |
+| **Preflight Interception** | Replay of proposed bad update v3 (`gate:11h`) | **60 of 60 replay runs violate contract** $\to$ **`Verdict: BLOCK`** |
+| **System Hygiene** | Playwright browser smoke test (`browser-smoke.ts`) | **0 secrets leaked** across all network requests; steps 1–6 verified |
+| **Full Gate Suite** | Complete gate verification suite (`gate:all`) | **15 of 15 gates PASS** (100% pass rate, 0 skipped) |
+
+> [!NOTE]
+> **Attribution & Eval Caveats**:
+> 1. Shapley values quantify credit assignment across replay experiments; they represent experimental blame sharing rather than causal proof.
+> 2. The recall evaluation set is small ($n = 24$ total, $n = 12$ held-out). Strong-tier recall reflects a conservative threshold ($0.48$) calibrated to eliminate false warnings.
+
+---
+
+## 7. Local Development Setup
+
+### Prerequisites
 - Node.js 22+
 - pnpm 9+
-- Docker Desktop (for local MongoDB replica set with vector search)
+- Docker Desktop (for MongoDB with vector search)
 
-### 2. Setup & Installation
+### Environment Configuration
+Copy `.env.example` to `.env` (no values are pre-committed):
+
+| Variable | Description |
+|---|---|
+| `NODE_ENV` | `development` or `production` |
+| `PORT` | Local port (default `3000`) |
+| `MONGODB_URI` | MongoDB connection string (`mongodb://127.0.0.1:27017/?directConnection=true`) |
+| `MONGODB_DB` | Database name (`waypoint_local`) |
+| `API_KEYS` | Comma-separated API keys for write operations |
+| `EMBED_PROVIDER` | `atlas_voyage`, `ollama`, or `none` |
+| `EMBED_API_KEY` | MongoDB Atlas Voyage Model API key |
+| `EMBED_BASE_URL` | `https://ai.mongodb.com/v1` |
+| `EMBED_MODEL` | `voyage-4` |
+| `EMBED_DIM` | `1024` |
+| `EMBED_MAX_RPM` | Rate limit cap (`3` on free trial) |
+
+### Commands (Verified in Clean Shell)
 ```bash
-# Clone the repository
-git clone https://github.com/Siddh-2006/WayPoint.git
-cd WayPoint
-
-# Install dependencies
+# 1. Install dependencies
 pnpm install
 
-# Start local MongoDB replica set with Atlas Search
+# 2. Start local MongoDB container (replica set enabled)
 docker compose up -d
 
-# Initialize database collections, validators, and indexes
-pnpm db:init
+# 3. Start Fastify backend & static web server (Port 3000)
+pnpm dev:server
+
+# 4. Run external agent runner to generate live traffic
+pnpm agent:run --scenario good --count 20
+
+# 5. Run mid-run breaking deployment simulation
+pnpm agent:run --scenario good --ship-change bad_deploy --count 30
+
+# 6. Execute full 15-gate verification suite
+pnpm gate:all
 ```
-
-### 3. Run Development Servers
-```bash
-# Start backend API (Fastify on port 3000)
-pnpm dev
-
-# In another terminal, start React Dashboard (Vite on port 5173)
-pnpm --filter @waypoint/web dev
-```
-
-### 4. Verification Gates
-Waypoint enforces automated gate scripts across every development milestone:
-```bash
-pnpm gate:1   # MongoDB schema & vector index probe
-pnpm gate:2   # Collections, schemas & uniqueness constraints
-pnpm gate:3   # Event ingestion & deduplication
-pnpm gate:5   # Context hashing & derived diffs
-pnpm gate:6   # Simulated agent & SDK
-pnpm gate:7   # Contract mining & incident detection
-pnpm gate:8   # React dashboard & SSE change streams
-pnpm gate:9   # Factorial replay grid & Shapley attribution (precision <= 1e-15)
-pnpm gate:10  # Episodic memory lessons, hybrid recall & preflight guard
-pnpm gate:10b # Real vector recall, honest score typing & hard paraphrase evaluation
-pnpm gate:11  # Evidence-cited LLM narration, MCP server & query explain panel
-pnpm gate:11e # Episodic memory calibration (split n=24), UI match tiering & Voyage rate limit resilience
-pnpm gate:11f # Product-aligned strong-tier recall (held-out n=12), realistic preflight & client RPM pacing
-pnpm gate:11g # Realistic preflight test, threshold provenance & weak match formatting
-pnpm gate:11h # Meaningful preflight matching: violation-based recall query & structural match
-```
-
-### 5. Episodic Memory Recall & Calibration ($n=24$)
-- **Evaluation Set**: Small benchmark of $n=24$ queries (12 calibration, 12 held-out) against 8 seeded lessons using official MongoDB Atlas Voyage-4 embeddings (1024-dim).
-- **Threshold Provenance**: Threshold `0.48` was chosen on 12 calibration queries, checked on 12 held-out (note: $n$ is small).
-- **Evaluation Summary**: "On a small evaluation (24 queries, 12 held out), vector search ranked the correct past incident first on every paraphrased query where keyword search found nothing. We set a conservative warning threshold, so weaker matches appear as context and don’t trigger a warning. Our false-warning rate on the held-out set was 0 of 5."
-- **Held-Out Results**: Strong-tier Hit@1 = 57% (4/7), Strong-tier Hit@3 = 57% (4/7), Negative False-Warning Rate = 0% (0/5). Pure rank-based Hit@3 without threshold cutoff is 100%.
-
-### 6. Two-Signal Preflight Matching
-Preflight lesson matching uses two complementary signals:
-
-1. **Semantic signal (violation-based query)**: When replay produces violations, the recall query is built from violation messages — the same vocabulary as the lesson's stored `symptom`. This ensures like-for-like semantic comparison (cosine ~0.88 on exact reoccurrences vs ~0.45 from a diff-description query). When replay is clean, the query falls back to change summaries.
-
-2. **Structural signal (deterministic, no threshold)**: A lesson is a strong structural match when its `violatedRules` contains `(rule, expectedKey)` matching a replay violation, AND the proposal's changed axes overlap the lesson's `culprit.units`. Both signals and cosine scores are shown in preflight reasons, making the match fully auditable.
-
-> **SIMULATED behavior note**: The demo invoice agent's snake_case `invoice_id` bug is deliberately planted. It triggers on models `v2` and `v3` when the camelCase prompt guard (`"Always use camelCase keys"`) is absent. This is documented in `server/src/demo/invoice-agent.ts`. The `v3` behavior enables a realistic demo: a model bump to `v3` is blocked because the same rule violation reoccurs and is matched structurally to the saved lesson.
-
-### 7. Model Context Protocol (MCP) Server
-Waypoint includes a standard I/O (stdio) MCP server allowing coding agents in Claude Desktop, Cursor, and Antigravity to run preflight verification and query lessons autonomously. See [docs/MCP.md](docs/MCP.md).
 
 ---
 
-## License & Credits
+## 8. Production Deployment (Render / Cloud)
 
-- MIT License. See [LICENSE](./LICENSE) and [THIRD_PARTY.md](./THIRD_PARTY.md) for full license audit of open-source libraries.
+Waypoint packages the Fastify backend and React frontend into a unified, single-container Docker image (`server/Dockerfile`).
 
+### Render Configuration
+- **Service Type**: Web Service (Docker runtime)
+- **Repository**: Connected to GitHub repository
+- **Root Directory**: Leave blank (repo root)
+- **Dockerfile Path**: `./server/Dockerfile`
+- **Docker Build Context**: `.` (repo root)
+- **Health Check Path**: `/health`
+- **Instance Count**: Exactly `1` (sandbox locks and rate limits are managed in-memory)
+- **Auto-Deploy**: Disabled for judging freeze
+
+### Required Production Environment Variables
+- `NODE_ENV=production`
+- `MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority`
+- `MONGODB_DB=waypoint_prod`
+- `API_KEYS=<generated-random-secret>`
+- `EMBED_PROVIDER=atlas_voyage`
+- `EMBED_API_KEY=<atlas-voyage-model-api-key>`
+- `EMBED_BASE_URL=https://ai.mongodb.com/v1`
+- `EMBED_MODEL=voyage-4`
+- `EMBED_DIM=1024`
+- `EMBED_MAX_RPM=3`
+- `LLM_ENABLED=false`
+- `READ_PUBLIC_PREFIX=demo-`
+
+---
+
+## 9. Known Limitations & Engineering Gaps
+
+1. **Atlas Voyage RPM Quota**: The free MongoDB Atlas Voyage API allows 3 requests per minute. Rapid custom queries trigger automatic fallback to in-app lexical matching.
+2. **Single-Instance In-Memory Locks**: Sandbox concurrency locks and rate-limiting buckets operate in-memory on the Fastify instance; horizontal scaling across multiple instances would require distributed Redis or MongoDB document leases.
+3. **Mined Contract Scope**: Invariant mining currently covers presence of required keys and primary BSON types; custom semantic validation rules (e.g., regex constraints or cross-field comparisons) require manual specification.
+4. **Evaluation Corpus Size**: The retrieval evaluation set consists of 24 queries (12 calibration, 12 held-out); enterprise deployments would benefit from broader domain-specific validation sets.
+
+---
+
+## 10. Credits & Prior Art
+
+- **Factorial Replay & Delta Debugging**: Inspired by Andreas Zeller's work on Delta Debugging and factorial experimental design in software testing.
+- **Cooperative Game Theory**: Shapley value credit assignment based on Lloyd Shapley's axiomatic solution for fair distribution of collective outcomes.
+- **Third-Party Libraries**: Fastify (MIT), MongoDB Node Driver (Apache-2.0), Zod (MIT), React (MIT), Recharts (MIT), Lucide (ISC), and Diff (BSD-3-Clause). See [`THIRD_PARTY.md`](./THIRD_PARTY.md) for full license details.
+
+---
+
+## 11. AI Assistance Disclosure
+
+AI coding assistants (Google DeepMind Antigravity) were utilized during the development of Waypoint to assist with boilerplate generation, test script scaffolding, and documentation formatting. All architectural designs, algorithmic implementations, mathematical proofs, and test verifications were reviewed, debugged, and validated by the team.

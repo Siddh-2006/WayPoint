@@ -8,6 +8,9 @@
   },
   "scripts": {
     "dev": "pnpm --filter server dev",
+    "dev:server": "tsx --env-file=.env server/src/index.ts",
+    "dev:web": "pnpm --filter @waypoint/web dev",
+    "agent:run": "tsx --env-file=.env scripts/agent-runner.ts",
     "gate:1": "tsx --env-file=.env scripts/src/gate1.ts",
     "gate:2": "tsx --env-file=.env scripts/src/gate2.ts",
     "gate:3": "tsx --env-file=.env scripts/src/gate3.ts",
@@ -30,11 +33,15 @@
     "test": "pnpm -r test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22.0.0",
+    "playwright": "^1.64.1",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

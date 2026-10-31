@@ -100,7 +100,7 @@ Status labels: **Built** means it exists and its gate passed. **Planned** means 
 - Exposes `preflight_change`, `explain_incident`, `recall_lessons`, `list_incidents`, and `get_deployment_status` as tools via stdio
 - Strictly read-only: verified 0 document writes across all collections
 - No API key leakage in tool outputs or error messages
-- Allows autonomous coding agents in Claude Desktop, Cursor, Antigravity, and CLI harnesses to run preflight verification before shipping
+- Allows coding assistants in Claude Desktop, Cursor, and Antigravity to run preflight verification via MCP or API before shipping
 - **Feeds into:** extras, where agents can trigger the same safety checks automatically.
 
 ## 11. Extras & Diagnostics (Built & Planned)

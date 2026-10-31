@@ -142,3 +142,34 @@ export async function cleanupExpiredSandboxes(db: Db): Promise<{ cleanedSandboxe
 
   return { cleanedSandboxes, deletedDocs };
 }
+
+/**
+ * Asserts that active sandboxes do not exceed MAX_SANDBOXES.
+ * If capacity is exceeded, runs cleanup of expired sandboxes.
+ * If still over capacity, returns false.
+ */
+export async function assertSandboxCapacity(db: Db, projectId: string): Promise<boolean> {
+  const prefix = config.READ_PUBLIC_PREFIX || 'demo-';
+  const maxSandboxes = config.MAX_SANDBOXES || 50;
+
+  const deploymentsCol = db.collection('deployments');
+  const existing = await deploymentsCol.findOne({ projectId });
+  if (existing) return true;
+
+  const count = await deploymentsCol.countDocuments({
+    projectId: { $regex: `^${prefix}` },
+  });
+
+  if (count >= maxSandboxes) {
+    await cleanupExpiredSandboxes(db);
+    const postCleanupCount = await deploymentsCol.countDocuments({
+      projectId: { $regex: `^${prefix}` },
+    });
+    if (postCleanupCount >= maxSandboxes) {
+      return false;
+    }
+  }
+
+  return true;
+}
+

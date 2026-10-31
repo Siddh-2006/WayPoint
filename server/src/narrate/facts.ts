@@ -123,7 +123,7 @@ export function buildFacts(
     label: 'Violations',
     text: f4Text,
     numbers: extractNumbersFromText(f4Text),
-    data: incident.violationSummary,
+    ...(incident.violationSummary ? { data: incident.violationSummary } : {}),
   });
 
   // F5+: Recalled lessons from episodic memory

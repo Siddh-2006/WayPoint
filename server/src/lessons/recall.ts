@@ -94,7 +94,7 @@ export async function recallLessons(
 ): Promise<RecallResponse> {
   const { projectId, query } = options;
   const strongThreshold = options.minScore ?? config.LESSON_MIN_SCORE;
-  const floorThreshold = 0.38; // Floor to capture faint candidate vectors for rank fusion
+  const floorThreshold = Math.min(0.33, strongThreshold); // Floor to capture faint candidate vectors for rank fusion
   const limit = options.limit ?? 5;
   const targetMode = options.mode ?? 'rrf';
   const now = new Date();
@@ -286,6 +286,7 @@ export async function recallLessons(
     lessonId: string;
     score: number;
     scoreType: ScoreType;
+    cosine?: number | undefined;
     tier: MatchTier;
     why: string;
     lesson: LessonDoc;

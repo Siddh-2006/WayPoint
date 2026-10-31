@@ -1,6 +1,6 @@
 # Model Context Protocol (MCP) Server for Waypoint
 
-Waypoint provides a native **Model Context Protocol (MCP)** server over standard I/O (`stdio`). This allows coding agents in Claude Desktop, Cursor, Antigravity, and CLI agents to autonomously inspect regressions, run preflight simulations, and recall episodic lessons before deploying changes.
+Waypoint provides a native **Model Context Protocol (MCP)** server over standard I/O (`stdio`). This allows coding assistants in Claude Desktop, Cursor, Antigravity, and other environments to inspect regressions, run preflight simulations, and recall episodic lessons before deploying changes.
 
 ---
 

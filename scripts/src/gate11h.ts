@@ -253,9 +253,9 @@ async function main() {
   const differentContract: ContractDoc = {
     projectId: testProject,
     tool: 'create_invoice',
-    requiredKeys: ['invoiceId', 'customerId'],  // 'customerId' is not in the lesson's violatedRules
-    types: { invoiceId: ['string'], customerId: ['string'] },
-    support: { invoiceId: 1.0, customerId: 1.0 },
+    requiredKeys: ['customerId'], // 'customerId' is not in the lesson's violatedRules
+    types: { customerId: ['string'] },
+    support: { customerId: 1.0 },
   };
 
   // Temporarily replace contract to simulate unrelated violation
@@ -282,6 +282,7 @@ async function main() {
   await lessonsCol.insertOne({
     ...(lesson as any),
     _id: `${lesson._id}_c`,
+    incidentId: `${lesson.incidentId}_c`,
     projectId: subProject,
     status: 'active',
   });

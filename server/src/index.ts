@@ -33,23 +33,31 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const app = Fastify({
+  connectionTimeout: 30_000,
+  keepAliveTimeout: 30_000,
   logger: {
     level: config.LOG_LEVEL,
-    // Structured JSON in production; pretty-print in dev
-    ...(config.NODE_ENV === 'development'
-      ? {
-          transport: {
-            target: 'pino-pretty',
-            options: { colorize: true },
-          },
-        }
-      : {}),
   },
 });
 
 // ─── Plugins ──────────────────────────────────────────────────────────────────
 
 await app.register(cors, { origin: config.CORS_ORIGIN });
+
+// Gracefully handle empty string/zero-byte bodies when Content-Type: application/json is sent
+app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+  if (typeof body === 'string' && body.trim() === '') {
+    done(null, {});
+    return;
+  }
+  try {
+    const json = JSON.parse(body as string);
+    done(null, json);
+  } catch (err: any) {
+    err.statusCode = 400;
+    done(err, undefined);
+  }
+});
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
@@ -107,7 +115,6 @@ if (existsSync(webDist)) {
   await app.register(fastifyStatic, {
     root: webDist,
     prefix: '/',
-    wildcard: false,
   });
 
   app.setNotFoundHandler(async (req, reply) => {

@@ -42,7 +42,7 @@ const db = client.db(dbName);
 console.log('\n─── Gate 7: Contract Mining, Violations & Incident Detector ───\n');
 
 // ─── (a) 20 good runs, then mine: invoiceId is required, support 1.0 ─────────
-const projA = `gate7_proj_a_${Date.now()}`;
+const projA = `demo-gate7_proj_a_${Date.now()}`;
 let goodContextHash = '';
 
 try {
@@ -317,7 +317,7 @@ try {
 }
 
 // ─── (g) Stop detector, insert bad runs, restart: created from resume token ────
-const projG = `gate7_proj_g_${Date.now()}`;
+const projG = `demo-gate7_proj_g_${Date.now()}`;
 try {
   // 1. Establish baseline for projG
   const baseRes = await fetch(`${BASE_URL}/v1/demo/run`, {

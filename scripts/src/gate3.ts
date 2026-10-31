@@ -84,8 +84,9 @@ try {
     stepKey: 'dup-test',
     contextPayload: {},
   };
+  const dupTotal = parseInt(process.env['GATE3_CONCURRENCY'] ?? '1000', 10);
   const responses = await Promise.all(
-    Array.from({ length: 1000 }, () =>
+    Array.from({ length: dupTotal }, () =>
       post(event, { 'x-api-key': API_KEY }),
     ),
   );
@@ -93,9 +94,9 @@ try {
   const statuses = await Promise.all(responses.map((r) => r.json())) as Array<{ results?: Array<{ status: string }> }>;
   const insertedCount = statuses.filter((s) => s.results?.[0]?.status === 'inserted').length;
   const dupCount = statuses.filter((s) => s.results?.[0]?.status === 'duplicate_ignored').length;
-  const ok = count === 1 && insertedCount === 1 && dupCount === 999;
+  const ok = count === 1 && insertedCount === 1 && dupCount === dupTotal - 1;
   check(
-    '(2) 1,000 concurrent duplicates → 1 doc',
+    `(2) ${dupTotal} concurrent duplicates → 1 doc`,
     ok,
     `stored=${count} inserted=${insertedCount} dup_ignored=${dupCount}`,
   );

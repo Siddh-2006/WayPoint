@@ -89,6 +89,25 @@ export default function App() {
 
     connect();
 
+    // Initial hydration: load recent runs & incidents so dashboard is populated on page load
+    fetch('/v1/demo/runs?projectId=demo')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.runs && Array.isArray(data.runs) && data.runs.length > 0) {
+          setRuns(data.runs);
+        }
+      })
+      .catch(() => {});
+
+    fetch('/v1/incidents?projectId=demo')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.incidents && Array.isArray(data.incidents) && data.incidents.length > 0) {
+          setIncidents(data.incidents);
+        }
+      })
+      .catch(() => {});
+
     return () => {
       isUnmounted = true;
       if (timer) clearTimeout(timer);
@@ -335,7 +354,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-border/80 py-4 text-center text-xs text-muted">
-        Waypoint • Autonomous Invariant Mining & Runtime Failure Attribution • MongoDB Hackathon
+        Waypoint • Baseline Invariant Mining & Replay Failure Attribution • MongoDB Hackathon
       </footer>
     </div>
   );

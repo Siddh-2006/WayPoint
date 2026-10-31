@@ -152,6 +152,7 @@ export function ExperimentsPage() {
       const res = await fetch(`/v1/incidents/${id}/replay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
       });
 
       if (!res.ok) {
@@ -259,7 +260,7 @@ export function ExperimentsPage() {
                 <div>
                   <h3 className="text-base font-medium text-slate-200">Shapley Value Attribution</h3>
                   <p className="text-xs text-muted">
-                    Marginal contribution across all {selectedExp.grid?.length ?? 8} coalitions with 95% bootstrap CI
+                    Blame shares across all {selectedExp.grid?.length ?? 8} replay coalitions with 95% bootstrap CI (credit assignment over replay results, not proof of causation)
                   </p>
                 </div>
                 <div className="text-xs font-mono px-2.5 py-1 rounded bg-slate-800 text-sky-400 border border-slate-700">

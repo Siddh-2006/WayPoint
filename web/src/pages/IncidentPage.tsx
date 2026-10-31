@@ -188,7 +188,7 @@ export function IncidentPage({ incidents }: IncidentPageProps) {
                 {/* Typed Change List */}
                 <div>
                   <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
-                    Root Cause Context Diff ({activeIncident.changes.length} changes)
+                    Deployment Context Diff ({activeIncident.changes.length} changes)
                   </h3>
                   <div className="space-y-2">
                     {activeIncident.changes.map((ch, idx) => (

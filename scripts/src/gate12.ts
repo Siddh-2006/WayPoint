@@ -87,6 +87,20 @@ async function main() {
   const invalidRefused = invalidSandbox === null;
   console.log(`Non-UUID session rejected: ${invalidRefused}`);
 
+  // Test non-demo- projectId refused by /v1/demo/run
+  let nonDemoRefused = false;
+  try {
+    const resDemoRun = await fetch('http://localhost:3000/v1/demo/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenarioId: 'good', projectId: 'production_corp' }),
+    });
+    nonDemoRefused = resDemoRun.status === 403;
+  } catch {
+    nonDemoRefused = true;
+  }
+  console.log(`Non-demo- projectId refused by /v1/demo/run (status 403): ${nonDemoRefused}`);
+
   // Test concurrent reset lock
   const { acquireResetLock, releaseResetLock } = await import('../../server/src/demo/sandbox.js');
   const lock1 = acquireResetLock(sBoxA.projectId);
@@ -98,7 +112,7 @@ async function main() {
   const lockOk = lock1 === true && lock2 === false && lock3 === true;
   console.log(`Concurrent lock yields 409 guard: ${lockOk}`);
 
-  const checkAPass = isolationOk && invalidRefused && lockOk;
+  const checkAPass = isolationOk && invalidRefused && nonDemoRefused && lockOk;
   if (checkAPass) {
     console.log('[PASS] Check (a): Sandboxes are strictly isolated with lock concurrency.\n');
   } else {
@@ -300,9 +314,21 @@ async function main() {
   const expiredRemaining = await db.collection('deployments').countDocuments({ projectId: expiredProj });
   console.log(`Expired deployment remaining after cleanup: ${expiredRemaining} (expected 0)`);
 
-  const checkDPass = expiredRemaining === 0 && cleanupRes.cleanedSandboxes >= 1;
+  // Test MAX_SANDBOXES capacity check
+  const { assertSandboxCapacity } = await import('../../server/src/demo/sandbox.js');
+  const dummyDeps = Array.from({ length: 50 }, (_, i) => ({
+    projectId: `demo-fillcap${i}`,
+    baselineHash: 'hash',
+    updatedAt: new Date(),
+  }));
+  await db.collection('deployments').insertMany(dummyDeps);
+  const capRefused = (await assertSandboxCapacity(db, 'demo-overcaptest')) === false;
+  await db.collection('deployments').deleteMany({ projectId: { $regex: '^demo-fillcap' } });
+  console.log(`MAX_SANDBOXES cap enforced when limit reached: ${capRefused}`);
+
+  const checkDPass = expiredRemaining === 0 && cleanupRes.cleanedSandboxes >= 1 && capRefused;
   if (checkDPass) {
-    console.log('[PASS] Check (d): TTL cleanup safely removed expired demo sandbox.\n');
+    console.log('[PASS] Check (d): TTL cleanup and MAX_SANDBOXES cap enforced.\n');
   } else {
     console.error('[FAIL] Check (d): Sandbox cleanup failed.');
     allChecksPassed = false;
@@ -326,7 +352,32 @@ async function main() {
   }
 
   console.log(`Rate limit test (limit 60): ${allowedCount} allowed, ${rejectedCount} rejected (429).`);
-  const checkEPass = allowedCount === 60 && rejectedCount === 5;
+  const rateLimitOk = allowedCount === 60 && rejectedCount === 5;
+
+  // Test SSE client cap (MAX_SSE_CLIENTS = 50)
+  const controllers: AbortController[] = [];
+  let sseCapEnforced = false;
+  try {
+    // Open 50 concurrent SSE streams
+    for (let i = 0; i < 50; i++) {
+      const ac = new AbortController();
+      controllers.push(ac);
+      fetch('http://localhost:3000/v1/stream', { signal: ac.signal }).catch(() => {});
+    }
+    // Give event loop a moment to register connections
+    await new Promise((r) => setTimeout(r, 100));
+
+    // 51st connection should receive 429
+    const res51 = await fetch('http://localhost:3000/v1/stream');
+    sseCapEnforced = res51.status === 429;
+    console.log(`SSE 51st client connection rejected with 429: ${sseCapEnforced} (status: ${res51.status})`);
+  } finally {
+    for (const ac of controllers) {
+      ac.abort();
+    }
+  }
+
+  const checkEPass = rateLimitOk && sseCapEnforced;
 
   if (checkEPass) {
     console.log('[PASS] Check (e): Rate limiting returns 429 when threshold exceeded.\n');

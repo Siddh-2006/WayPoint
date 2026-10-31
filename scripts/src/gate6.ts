@@ -229,7 +229,7 @@ try {
 
 // ─── (g) POST /v1/demo/run bad_deploy stores 20 runs with contextHash links ───
 try {
-  const testProjectId = `gate6-demo-${Date.now()}`;
+  const testProjectId = `demo-gate6-${Date.now()}`;
   const res = await fetch(`${BASE_URL}/v1/demo/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

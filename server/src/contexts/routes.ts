@@ -58,7 +58,7 @@ export async function contextRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    const { projectId } = parseResult.data;
+    const { projectId, model, promptText, config: cfg, toolSchemas, deps } = parseResult.data;
     const isPublic = isPublicDemoProject(projectId);
     const key = req.headers['x-api-key'];
     const hasValidKey = typeof key === 'string' && config.API_KEYS.includes(key);
@@ -66,8 +66,6 @@ export async function contextRoutes(app: FastifyInstance): Promise<void> {
     if (!isPublic && !hasValidKey) {
       return reply.code(401).send({ error: 'Unauthorized: invalid or missing x-api-key' });
     }
-
-    const { projectId, model, promptText, config: cfg, toolSchemas, deps } = parseResult.data;
 
     const ctxData: ContextData = {
       model,

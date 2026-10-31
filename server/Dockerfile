@@ -61,6 +61,9 @@ COPY --from=builder /app/web/dist ./web/dist
 # Run as non-root (node user, uid 1000, built into the official image).
 USER node
 
+ARG GIT_SHA=unknown
+ENV GIT_SHA=${GIT_SHA}
+
 # PORT is injected at runtime by the host.
 ENV NODE_ENV=production
 EXPOSE 3000

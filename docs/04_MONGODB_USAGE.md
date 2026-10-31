@@ -48,7 +48,7 @@ Waypoint's data is messy and varied (prompt text, JSON settings, tool calls, vec
 ## 4. Local and production
 
 - **Local:** MongoDB with replica set support in Docker. Embeddings generated via MongoDB Atlas Embedding API (`voyage-4` via Voyage AI) or local Ollama, with vector similarity search running in Atlas or fallback in-memory cosine ranking.
-- **Production:** MongoDB Atlas (M0/M10). Uses Atlas Vector Search (`$vectorSearch` on `lessons_vector`) and Atlas Text Search (`$search` on `lessons_text`), combined via Reciprocal Rank Fusion (RRF k=60).
+- **Production:** MongoDB Atlas (M0/M10). Uses Atlas Vector Search (`$vectorSearch` on `lessons_vector`) and in-app lexical token-overlap & exact-identifier matching, combined via Reciprocal Rank Fusion (RRF k=60).
 - Embeddings are generated client-side via MongoDB's serverless Atlas Embedding & Reranking API (`https://ai.mongodb.com/v1`, using Voyage AI models with 200M free organization tokens).
 - **Episodic Memory Calibration & Resilience ($n=24$ eval set):**
   - **Deterministic Split:** Even queries ($n=12$, 7 pos / 5 neg) calibrate threshold; odd queries ($n=12$, 7 pos / 5 neg) serve as strictly held-out test.

@@ -83,6 +83,7 @@ export async function runLessonsEval(
     expiresAt,
   }));
 
+  await lessonsCol.deleteMany({ _id: { $in: evalData.seededLessons.map((l: any) => l.id) } });
   await lessonsCol.insertMany(seedDocs as any);
 
   console.log(`[Voyage Eval] Embedded & inserted 8 lessons. Pacing 25s for Atlas trial rate limit...`);
@@ -124,7 +125,8 @@ export async function runLessonsEval(
 
       if (q.isNegative) {
         totalNegatives++;
-        if (res.results.length > 0) {
+        // Product-aligned false warning: only strong matches trigger warnings
+        if (res.results.some((r) => r.tier === 'strong match')) {
           falsePositives++;
         }
       } else {

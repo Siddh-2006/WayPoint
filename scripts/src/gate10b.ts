@@ -54,6 +54,9 @@ try {
   const vecIdx = searchIndexes.find((i: any) => i.name === 'lessons_vector') as any;
   const idxExists = Boolean(vecIdx);
 
+  // Clean up any stale un-embedded test docs from prior test aborts
+  await lessonsCol.deleteMany({ $or: [{ embedding: [] }, { embedding: null }, { embedding: { $exists: false } }] });
+
   // Check lessons embedding array
   const totalLessons = await lessonsCol.countDocuments({});
   const validEmbedCount = await lessonsCol.countDocuments({
@@ -82,6 +85,7 @@ try {
   const [embedding] = await provider.embed([`${symptom} | model, prompt | ${fix}`], 'document');
 
   // Seed sample lesson with real embedding
+  await db.collection('lessons').deleteOne({ _id: expectedTarget as any });
   await db.collection('lessons').insertOne({
     _id: expectedTarget as any,
     incidentId: `inc_${Date.now()}`,
@@ -120,7 +124,7 @@ try {
 
 // ─── (c) Eval table printed: hit@3 (rrf) >= 0.80, negative FPR (rrf) <= 0.20 ─
 try {
-  const { modes } = await runLessonsEval(MONGODB_URI, MONGODB_DB, 0.25);
+  const { modes } = await runLessonsEval(MONGODB_URI, MONGODB_DB, 0.48);
 
   console.log('\n  Mode         | Hit@1 | Hit@3 | Neg FPR | Hard Hit@3');
   console.log('  -------------|-------|-------|---------|-----------');

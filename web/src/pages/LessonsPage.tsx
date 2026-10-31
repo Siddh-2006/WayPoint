@@ -108,7 +108,7 @@ export function LessonsPage() {
             Episodic Memory (Lessons Store)
           </h1>
           <p className="text-sm text-muted mt-1">
-            Persisted regression memories and causal invariants prevent recurring silent failures across
+            Persisted regression memories and mined invariants prevent recurring silent failures across
             deployments.
           </p>
         </div>

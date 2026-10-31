@@ -88,8 +88,8 @@ try {
 
 // ─── Setup: Create an incident with done experiment for demo project ─────────
 let testIncidentId = '';
-const projectA = `proj_alpha_${Date.now()}`;
-const projectB = `proj_beta_${Date.now()}`;
+const projectA = `demo-proj_alpha_${Date.now()}`;
+const projectB = `demo-proj_beta_${Date.now()}`;
 
 try {
   // Establish baseline on projectA

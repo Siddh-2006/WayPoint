@@ -3,7 +3,15 @@ import { Play, CheckCircle2, AlertCircle, ArrowRight, RotateCcw, Shield, Externa
 
 export function DemoGuidePage() {
   const [sessionId, setSessionId] = React.useState<string>('');
-  const [projectId, setProjectId] = React.useState<string>('');
+  const [projectId, setProjectIdState] = React.useState<string>(() => sessionStorage.getItem('waypoint_demo_project') || '');
+  const projectRef = React.useRef<string>(sessionStorage.getItem('waypoint_demo_project') || '');
+
+  const setProjectId = React.useCallback((pid: string) => {
+    projectRef.current = pid;
+    setProjectIdState(pid);
+    sessionStorage.setItem('waypoint_demo_project', pid);
+  }, []);
+
   const [stepStatus, setStepStatus] = React.useState<Record<number, 'idle' | 'running' | 'done' | 'error'>>({
     1: 'idle',
     2: 'idle',
@@ -35,7 +43,11 @@ export function DemoGuidePage() {
   const handleReset = async () => {
     setStepStatus((s) => ({ ...s, 1: 'running' }));
     try {
-      const res = await fetch('/v1/demo/story/reset', { method: 'POST', headers: getHeaders() });
+      const res = await fetch('/v1/demo/story/reset', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({}),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to reset sandbox');
       setProjectId(data.projectId);
@@ -51,10 +63,11 @@ export function DemoGuidePage() {
   const handleBaseline = async () => {
     setStepStatus((s) => ({ ...s, 2: 'running' }));
     try {
+      const activePid = projectRef.current || projectId;
       const res = await fetch('/v1/demo/run', {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ scenarioId: 'good', projectId }),
+        body: JSON.stringify({ scenarioId: 'good', projectId: activePid }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to run baseline');
@@ -70,20 +83,26 @@ export function DemoGuidePage() {
   const handleBadDeploy = async () => {
     setStepStatus((s) => ({ ...s, 3: 'running' }));
     try {
+      const activePid = projectRef.current || projectId;
       const res = await fetch('/v1/demo/run', {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ scenarioId: 'bad_deploy', projectId }),
+        body: JSON.stringify({ scenarioId: 'bad_deploy', projectId: activePid }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed bad deploy');
 
-      // Fetch incident
-      const incRes = await fetch(`/v1/incidents?projectId=${projectId || 'demo'}`, { headers: getHeaders() });
-      const incData = await incRes.json();
-      const inc = incData.incidents?.[0];
-      if (inc) {
-        setActiveIncidentId(inc._id || inc.incidentId);
+      // Fetch incident with quick retries for detector change stream propagation
+      let inc: any = null;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const incRes = await fetch(`/v1/incidents?projectId=${activePid}`, { headers: getHeaders() });
+        const incData = await incRes.json();
+        inc = incData.incidents?.[0];
+        if (inc) {
+          setActiveIncidentId(inc._id || inc.incidentId);
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 300));
       }
 
       setStepStatus((s) => ({ ...s, 3: 'done' }));
@@ -98,9 +117,10 @@ export function DemoGuidePage() {
   const handleReplay = async () => {
     setStepStatus((s) => ({ ...s, 4: 'running' }));
     try {
+      const activePid = projectRef.current || projectId;
       let incId = activeIncidentId;
       if (!incId) {
-        const incRes = await fetch(`/v1/incidents?projectId=${projectId || 'demo'}`, { headers: getHeaders() });
+        const incRes = await fetch(`/v1/incidents?projectId=${activePid}`, { headers: getHeaders() });
         const incData = await incRes.json();
         incId = incData.incidents?.[0]?._id;
         if (!incId) throw new Error('No incident found. Complete Step 3 first.');
@@ -126,9 +146,10 @@ export function DemoGuidePage() {
   const handleResolve = async () => {
     setStepStatus((s) => ({ ...s, 5: 'running' }));
     try {
+      const activePid = projectRef.current || projectId;
       let incId = activeIncidentId;
       if (!incId) {
-        const incRes = await fetch(`/v1/incidents?projectId=${projectId || 'demo'}`, { headers: getHeaders() });
+        const incRes = await fetch(`/v1/incidents?projectId=${activePid}`, { headers: getHeaders() });
         const incData = await incRes.json();
         incId = incData.incidents?.[0]?._id;
         if (!incId) throw new Error('No incident found. Complete Step 3 first.');
@@ -157,6 +178,7 @@ export function DemoGuidePage() {
   const handlePreflight = async () => {
     setStepStatus((s) => ({ ...s, 6: 'running' }));
     try {
+      const activePid = projectRef.current || projectId;
       const proposedV3 = {
         model: 'v3',
         promptText: 'Extract invoice line items with high precision and compute subtotals accurately.',
@@ -168,7 +190,7 @@ export function DemoGuidePage() {
       const res = await fetch('/v1/preflight', {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ projectId, proposedContext: proposedV3 }),
+        body: JSON.stringify({ projectId: activePid, proposedContext: proposedV3 }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Preflight check failed');
@@ -233,6 +255,7 @@ export function DemoGuidePage() {
               </div>
             </div>
             <button
+              data-testid="step-1-btn"
               onClick={handleReset}
               disabled={stepStatus[1] === 'running'}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition flex items-center space-x-1.5 disabled:opacity-50"
@@ -257,6 +280,7 @@ export function DemoGuidePage() {
               </div>
             </div>
             <button
+              data-testid="step-2-btn"
               onClick={handleBaseline}
               disabled={stepStatus[2] === 'running'}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm font-medium transition flex items-center space-x-1.5 disabled:opacity-50"
@@ -281,6 +305,7 @@ export function DemoGuidePage() {
               </div>
             </div>
             <button
+              data-testid="step-3-btn"
               onClick={handleBadDeploy}
               disabled={stepStatus[3] === 'running'}
               className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition flex items-center space-x-1.5 disabled:opacity-50"
@@ -305,6 +330,7 @@ export function DemoGuidePage() {
               </div>
             </div>
             <button
+              data-testid="step-4-btn"
               onClick={handleReplay}
               disabled={stepStatus[4] === 'running'}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm font-medium transition flex items-center space-x-1.5 disabled:opacity-50"
@@ -329,6 +355,7 @@ export function DemoGuidePage() {
               </div>
             </div>
             <button
+              data-testid="step-5-btn"
               onClick={handleResolve}
               disabled={stepStatus[5] === 'running'}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm font-medium transition flex items-center space-x-1.5 disabled:opacity-50"
@@ -353,6 +380,7 @@ export function DemoGuidePage() {
               </div>
             </div>
             <button
+              data-testid="step-6-btn"
               onClick={handlePreflight}
               disabled={stepStatus[6] === 'running'}
               className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-sm font-medium transition flex items-center space-x-1.5 disabled:opacity-50"
@@ -371,3 +399,4 @@ export function DemoGuidePage() {
     </div>
   );
 }
+

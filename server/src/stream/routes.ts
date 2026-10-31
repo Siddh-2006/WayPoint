@@ -2,36 +2,109 @@
  * server/src/stream/routes.ts
  *
  * Real-time Server-Sent Events (SSE) route:
- *   GET /v1/stream — streams real-time updates for runs, incidents, and experiments.
+ *   GET /v1/stream — streams real-time updates for runs and incidents.
  *
- * Features:
- *   - Backed by MongoDB collection-level change streams on runs and incidents
- *   - Supports Last-Event-ID header for client reconnect
- *   - Periodic 15s heartbeat to prevent proxy timeouts
- *   - Enforces MAX_SSE_CLIENTS limit (default 50)
- *   - Cleans up change stream listeners on client disconnect
- *   - Deep redaction to ensure no secrets escape in stream payloads
+ * Architecture (Decision D30):
+ *   - Singleton shared MongoDB change streams on runs and incidents
+ *   - In-memory fan-out to all active connected SSE clients (prevents Atlas M0 connection/stream exhaustion)
+ *   - Enforces MAX_SSE_CLIENTS limit (returns 429 when cap reached)
+ *   - Periodic 15s heartbeat per connection to prevent proxy timeouts
+ *   - Zero secrets leaked via deep redact() before broadcast
  */
 
 import type { FastifyInstance } from 'fastify';
+import type { Db } from 'mongodb';
 import { getDb } from '../db/client.js';
 import { config } from '../config.js';
 import { redact } from '../ingest/redact.js';
 
-let activeSseClients = 0;
+interface SseClient {
+  id: string;
+  write: (data: string) => void;
+  close: () => void;
+}
+
+const activeClients = new Set<SseClient>();
+let streamsStarted = false;
+let clientCounter = 0;
+
+function broadcast(type: string, doc: Record<string, unknown>): void {
+  if (activeClients.size === 0) return;
+  const cleanDoc = redact(doc);
+  const payload = `event: message\ndata: ${JSON.stringify({ type, doc: cleanDoc })}\n\n`;
+  for (const client of activeClients) {
+    try {
+      client.write(payload);
+    } catch {
+      // client write failed, will be removed on close
+    }
+  }
+}
+
+function ensureSharedChangeStreams(db: Db): void {
+  if (streamsStarted) return;
+  streamsStarted = true;
+
+  try {
+    const runsCol = db.collection('runs');
+    const runsStream = runsCol.watch([], { fullDocument: 'updateLookup' });
+
+    (async () => {
+      try {
+        for await (const change of runsStream) {
+          const fullDoc = (change as { fullDocument?: Record<string, unknown> }).fullDocument;
+          if (fullDoc) {
+            broadcast('run', fullDoc);
+          }
+        }
+      } catch (err: any) {
+        console.warn('[SSE] Runs shared change stream closed:', err?.message || err);
+        streamsStarted = false;
+      }
+    })();
+  } catch (err: any) {
+    console.warn('[SSE] Could not watch runs change stream (change streams might not be supported in standalone):', err?.message || err);
+    streamsStarted = false;
+  }
+
+  try {
+    const incidentsCol = db.collection('incidents');
+    const incidentsStream = incidentsCol.watch([], { fullDocument: 'updateLookup' });
+
+    (async () => {
+      try {
+        for await (const change of incidentsStream) {
+          const fullDoc = (change as { fullDocument?: Record<string, unknown> }).fullDocument;
+          if (fullDoc) {
+            broadcast('incident', fullDoc);
+          }
+        }
+      } catch (err: any) {
+        console.warn('[SSE] Incidents shared change stream closed:', err?.message || err);
+      }
+    })();
+  } catch (err: any) {
+    console.warn('[SSE] Could not watch incidents change stream:', err?.message || err);
+  }
+}
+
+export function getActiveSseClientCount(): number {
+  return activeClients.size;
+}
 
 export async function streamRoutes(app: FastifyInstance): Promise<void> {
   const db = getDb();
 
   app.get('/v1/stream', async (req, reply) => {
     // 1. Cap concurrent clients
-    if (activeSseClients >= config.MAX_SSE_CLIENTS) {
+    if (activeClients.size >= config.MAX_SSE_CLIENTS) {
       return reply.code(429).send({ error: 'Max concurrent SSE clients reached' });
     }
 
-    activeSseClients++;
+    // 2. Ensure singleton shared change streams are active
+    ensureSharedChangeStreams(db);
 
-    // 2. Set SSE response headers
+    // 3. Set SSE response headers
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
@@ -46,75 +119,37 @@ export async function streamRoutes(app: FastifyInstance): Promise<void> {
     reply.raw.write(`event: connected\ndata: ${JSON.stringify({ time: new Date().toISOString() })}\n\n`);
     reply.raw.write(`: heartbeat ${new Date().toISOString()}\n\n`);
 
-    // 3. Heartbeat timer (every 15s)
+    // 4. Register client in fan-out set
+    const clientId = `sse_${++clientCounter}_${Date.now()}`;
+    let isClosed = false;
+
     const heartbeatTimer = setInterval(() => {
+      if (isClosed) return;
       try {
         reply.raw.write(`: heartbeat ${new Date().toISOString()}\n\n`);
       } catch {
-        clearInterval(heartbeatTimer);
+        cleanup();
       }
     }, 15_000);
 
-    // 4. Watch collections
-    const lastEventId = req.headers['last-event-id'] as string | undefined;
-
-    const runsCol = db.collection('runs');
-    const incidentsCol = db.collection('incidents');
-
-    const runsStream = runsCol.watch([], { fullDocument: 'updateLookup' });
-    const incidentsStream = incidentsCol.watch([], { fullDocument: 'updateLookup' });
-
-    let isClosed = false;
+    const sseClient: SseClient = {
+      id: clientId,
+      write: (data: string) => {
+        if (!isClosed) reply.raw.write(data);
+      },
+      close: () => cleanup(),
+    };
 
     function cleanup(): void {
       if (isClosed) return;
       isClosed = true;
-      activeSseClients = Math.max(0, activeSseClients - 1);
+      activeClients.delete(sseClient);
       clearInterval(heartbeatTimer);
-      runsStream.close().catch(() => undefined);
-      incidentsStream.close().catch(() => undefined);
     }
 
+    activeClients.add(sseClient);
     req.raw.on('close', cleanup);
     req.raw.on('error', cleanup);
-
-    // Stream helper
-    function sendEvent(type: string, doc: unknown, id?: string): void {
-      if (isClosed) return;
-      const cleanDoc = redact(doc);
-      const idLine = id ? `id: ${id}\n` : '';
-      reply.raw.write(`${idLine}event: message\ndata: ${JSON.stringify({ type, doc: cleanDoc })}\n\n`);
-    }
-
-    // Process runs change stream
-    (async () => {
-      try {
-        for await (const change of runsStream) {
-          if (isClosed) break;
-          const fullDoc = (change as { fullDocument?: Record<string, unknown> }).fullDocument;
-          if (fullDoc) {
-            sendEvent('run', fullDoc, String(change._id));
-          }
-        }
-      } catch {
-        // Stream closed
-      }
-    })();
-
-    // Process incidents change stream
-    (async () => {
-      try {
-        for await (const change of incidentsStream) {
-          if (isClosed) break;
-          const fullDoc = (change as { fullDocument?: Record<string, unknown> }).fullDocument;
-          if (fullDoc) {
-            sendEvent('incident', fullDoc, String(change._id));
-          }
-        }
-      } catch {
-        // Stream closed
-      }
-    })();
 
     // Keep request open until client closes
     await new Promise((resolve) => {
@@ -122,4 +157,3 @@ export async function streamRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 }
-
