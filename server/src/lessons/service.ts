@@ -16,6 +16,19 @@ export interface CulpritSummary {
   interaction: boolean;
 }
 
+/**
+ * A violated rule reference stored on a lesson for deterministic structural matching.
+ * Captures the rule type (e.g. 'unexpected_similar_key') and the expected key name.
+ * When a new preflight replay produces the same rule on the same expectedKey,
+ * and the changed axes overlap the lesson's culprit axes, a structural match fires —
+ * no cosine threshold needed.
+ */
+export interface ViolatedRuleRef {
+  rule: 'missing_required_key' | 'unexpected_similar_key' | 'wrong_type';
+  expectedKey: string;
+  tool?: string | undefined;
+}
+
 export interface LessonDoc {
   _id: string;
   incidentId: string;
@@ -30,6 +43,8 @@ export interface LessonDoc {
   embedding: number[];
   embeddingModel?: string | undefined;
   dim?: number | undefined;
+  /** Violated rule refs from the incident replay — used for structural matching in preflight. */
+  violatedRules?: ViolatedRuleRef[] | undefined;
   createdAt: Date;
   expiresAt: Date;
 }
@@ -38,6 +53,8 @@ export interface ResolveIncidentInput {
   fix: string;
   note?: string | undefined;
   source?: 'incident' | 'seed' | undefined;
+  /** Violated rule refs from the incident's replay — stored for structural preflight matching. */
+  violatedRules?: ViolatedRuleRef[] | undefined;
 }
 
 export async function resolveIncident(
@@ -136,6 +153,7 @@ export async function resolveIncident(
     embedding,
     embeddingModel: provider.model,
     dim: provider.dim,
+    violatedRules: input.violatedRules ?? [],
     createdAt: now,
     expiresAt,
   };

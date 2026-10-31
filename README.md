@@ -98,6 +98,7 @@ pnpm gate:11  # Evidence-cited LLM narration, MCP server & query explain panel
 pnpm gate:11e # Episodic memory calibration (split n=24), UI match tiering & Voyage rate limit resilience
 pnpm gate:11f # Product-aligned strong-tier recall (held-out n=12), realistic preflight & client RPM pacing
 pnpm gate:11g # Realistic preflight test, threshold provenance & weak match formatting
+pnpm gate:11h # Meaningful preflight matching: violation-based recall query & structural match
 ```
 
 ### 5. Episodic Memory Recall & Calibration ($n=24$)
@@ -106,7 +107,16 @@ pnpm gate:11g # Realistic preflight test, threshold provenance & weak match form
 - **Evaluation Summary**: "On a small evaluation (24 queries, 12 held out), vector search ranked the correct past incident first on every paraphrased query where keyword search found nothing. We set a conservative warning threshold, so weaker matches appear as context and don’t trigger a warning. Our false-warning rate on the held-out set was 0 of 5."
 - **Held-Out Results**: Strong-tier Hit@1 = 57% (4/7), Strong-tier Hit@3 = 57% (4/7), Negative False-Warning Rate = 0% (0/5). Pure rank-based Hit@3 without threshold cutoff is 100%.
 
-### 6. Model Context Protocol (MCP) Server
+### 6. Two-Signal Preflight Matching
+Preflight lesson matching uses two complementary signals:
+
+1. **Semantic signal (violation-based query)**: When replay produces violations, the recall query is built from violation messages — the same vocabulary as the lesson's stored `symptom`. This ensures like-for-like semantic comparison (cosine ~0.88 on exact reoccurrences vs ~0.45 from a diff-description query). When replay is clean, the query falls back to change summaries.
+
+2. **Structural signal (deterministic, no threshold)**: A lesson is a strong structural match when its `violatedRules` contains `(rule, expectedKey)` matching a replay violation, AND the proposal's changed axes overlap the lesson's `culprit.units`. Both signals and cosine scores are shown in preflight reasons, making the match fully auditable.
+
+> **SIMULATED behavior note**: The demo invoice agent's snake_case `invoice_id` bug is deliberately planted. It triggers on models `v2` and `v3` when the camelCase prompt guard (`"Always use camelCase keys"`) is absent. This is documented in `server/src/demo/invoice-agent.ts`. The `v3` behavior enables a realistic demo: a model bump to `v3` is blocked because the same rule violation reoccurs and is matched structurally to the saved lesson.
+
+### 7. Model Context Protocol (MCP) Server
 Waypoint includes a standard I/O (stdio) MCP server allowing coding agents in Claude Desktop, Cursor, and Antigravity to run preflight verification and query lessons autonomously. See [docs/MCP.md](docs/MCP.md).
 
 ---

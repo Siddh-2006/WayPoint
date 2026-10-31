@@ -33,6 +33,8 @@ export interface RecallResultItem {
   scoreType: ScoreType;
   tier: MatchTier;
   why: string;
+  /** Deterministic structural match reason — present when same rule+key+axes fire (no threshold) */
+  structuralReason?: string | undefined;
   lesson: LessonDoc;
 }
 

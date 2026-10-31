@@ -18,12 +18,13 @@ import { config } from '../config.js';
 import { diffContexts, type ContextChange } from '../contexts/diff.js';
 import { hashContext, type ContextData } from '../contexts/hash.js';
 import { extractUnits } from '../replay/units.js';
-import { getCorpus, type ReplayCellStats } from '../replay/engine.js';
+import { getCorpus } from '../replay/engine.js';
 import { runAgent } from '../demo/invoice-agent.js';
-import { checkRun, type ContractDoc } from '../contracts/check.js';
+import { checkRun, type ContractDoc, type RunViolation } from '../contracts/check.js';
 import { wilsonScoreInterval, determineVerdict, type WilsonInterval } from '../replay/stats.js';
 import { recallLessons, type RecallResultItem } from '../lessons/recall.js';
 import { BaselinePrerequisiteError } from '../replay/engine.js';
+import type { ViolatedRuleRef } from '../lessons/service.js';
 
 export interface PreflightResult {
   projectId: string;
@@ -108,6 +109,7 @@ export async function runPreflight(
   const samples = config.REPLAY_SAMPLES;
   const totalEvals = corpus.length * samples;
   let violationsCount = 0;
+  const seenViolations: RunViolation[] = [];
 
   for (let idx = 0; idx < corpus.length; idx++) {
     const input = corpus[idx]!;
@@ -120,6 +122,15 @@ export async function runPreflight(
       const cached = await replayCacheCol.findOne({ key: cacheKey });
       if (cached) {
         isViolation = Boolean(cached['isViolation']);
+        // Recover cached violations for recall query building
+        if (isViolation && cached['violations']) {
+          const cachedViols = cached['violations'] as RunViolation[];
+          for (const v of cachedViols) {
+            if (!seenViolations.some((sv) => sv.rule === v.rule && sv.expectedKey === v.expectedKey)) {
+              seenViolations.push(v);
+            }
+          }
+        }
       } else {
         const result = runAgent({ context: proposedContext, input, seed });
         const checkEvents = result.steps.map((step, sIdx) => ({
@@ -133,6 +144,13 @@ export async function runPreflight(
         const violations = checkRun(contracts, checkEvents);
         isViolation = violations.length > 0;
 
+        // Accumulate unique violations for recall query building
+        for (const v of violations) {
+          if (!seenViolations.some((sv) => sv.rule === v.rule && sv.expectedKey === v.expectedKey)) {
+            seenViolations.push(v);
+          }
+        }
+
         await replayCacheCol
           .updateOne(
             { key: cacheKey },
@@ -143,6 +161,7 @@ export async function runPreflight(
                 seed,
                 agentVersion: 'v1',
                 isViolation,
+                violations: violations.length > 0 ? violations : [],
                 createdAt: new Date(),
               },
             },
@@ -159,11 +178,25 @@ export async function runPreflight(
   const baselineWilson = wilsonScoreInterval(0, totalEvals);
   const cellVerdict = determineVerdict(replayWilson, baselineWilson, config.EXPERIMENT_EPSILON);
 
-  // 5. Build recall query from change summaries (only if changes exist)
+  // 5. Build recall query from violation messages (like-for-like with lesson.symptom)
+  //    When replay produces violations, use the violation messages as the recall query —
+  //    these are the same style as the symptom stored in a lesson.
+  //    When replay is clean, fall back to change summaries (current behaviour).
   let recallRes = { results: [] as RecallResultItem[], mode: 'none' };
   if (changes.length > 0) {
-    const changeSummaries = changes.map((c) => c.summary).join(' ');
-    const recallQuery = changeSummaries || 'proposed configuration change';
+    let recallQuery: string;
+    if (seenViolations.length > 0) {
+      // Build query from violation messages — same vocabulary as lesson.symptom
+      const violationMsgs = seenViolations
+        .slice(0, 3)
+        .map((v) => v.message)
+        .join('; ');
+      const changeSummaries = changes.map((c) => c.summary).join(' ');
+      recallQuery = `${violationMsgs}. ${changeSummaries}`;
+    } else {
+      const changeSummaries = changes.map((c) => c.summary).join(' ');
+      recallQuery = changeSummaries || 'proposed configuration change';
+    }
 
     recallRes = await recallLessons(db, {
       projectId,
@@ -171,6 +204,35 @@ export async function runPreflight(
       minScore: config.LESSON_MIN_SCORE,
       limit: 3,
     });
+  }
+
+  // 5b. Structural match: deterministic signal, no threshold.
+  //     A lesson matches structurally when ALL of:
+  //       1. lesson.violatedRules contains an entry (rule, expectedKey) that also appears in seenViolations
+  //       2. the proposal's changed axes (units) overlap the lesson's culprit.units
+  //     If a structural match fires, upgrade the tier to 'strong match' and attach reason.
+  const proposalAxes = new Set(units);
+  for (const item of recallRes.results) {
+    const lesson = item.lesson;
+    const lessonViolatedRules: ViolatedRuleRef[] = (lesson as any).violatedRules ?? [];
+    const lessonCulpritUnits: string[] = lesson.culprit?.units ?? [];
+
+    // Check rule+key overlap
+    const ruleMatch = lessonViolatedRules.some((lr) =>
+      seenViolations.some((sv) => sv.rule === lr.rule && sv.expectedKey === lr.expectedKey),
+    );
+    // Check axes overlap
+    const axesOverlap = lessonCulpritUnits.some((u) => proposalAxes.has(u));
+
+    if (ruleMatch && axesOverlap) {
+      const matchedRule = lessonViolatedRules.find((lr) =>
+        seenViolations.some((sv) => sv.rule === lr.rule && sv.expectedKey === lr.expectedKey),
+      )!;
+      const structReason = `same rule (${matchedRule.rule}) on key "${matchedRule.expectedKey}" and axes [${lessonCulpritUnits.join(', ')}]`;
+      item.tier = 'strong match';
+      item.structuralReason = structReason;
+      item.why = `${item.why}; structural: ${structReason}`;
+    }
   }
 
   // 6. Determine final verdict & reasons
@@ -188,13 +250,19 @@ export async function runPreflight(
 
   if (recallRes.results.length > 0) {
     const topLesson = recallRes.results[0]!;
-    // Requirement: A lesson below threshold can never produce a warn verdict.
-    // Only 'strong match' tier (>= LESSON_MIN_SCORE) produces a warning.
-    if (topLesson.tier === 'strong match' && topLesson.score >= config.LESSON_MIN_SCORE) {
+    // A lesson is a strong match if:
+    //   - cosine >= LESSON_MIN_SCORE (calibrated threshold), OR
+    //   - structural match fired (same rule+key+axes — deterministic, no threshold)
+    const hasStructural = Boolean(topLesson.structuralReason);
+    const hasStrongCosine = topLesson.score >= config.LESSON_MIN_SCORE;
+    const isStrongMatch = topLesson.tier === 'strong match' && (hasStrongCosine || hasStructural);
+
+    if (isStrongMatch) {
+      const structNote = hasStructural ? ` Structural: ${topLesson.structuralReason}.` : '';
       reasons.push(
         `Matched past incident lesson (${topLesson.lessonId}, score ${topLesson.score.toFixed(
           3,
-        )} [${topLesson.tier}]): ${topLesson.lesson.symptom}`,
+        )} [${topLesson.tier}]):${structNote} ${topLesson.lesson.symptom}`,
       );
       if (verdict === 'pass') {
         verdict = 'warn';

@@ -11,7 +11,8 @@
  * Planted failure condition:
  *   - Correct tool call arguments use key `invoiceId`.
  *   - The bug (using snake_case `invoice_id`) triggers ONLY when:
- *       model === 'v2' AND promptText does NOT contain "Always use camelCase keys"
+ *       model in {'v2', 'v3'} AND promptText does NOT contain "Always use camelCase keys"
+ *       (SIMULATED: v3 deliberately reintroduces the v2 key-naming bug; documented in README)
  *   - config.chunkSize is a decoy: it alters retrieval snippet length but never causes the bug.
  *   - When config.temperature > 0.7, noise is added: bug probability is 0.85 instead of 1.0.
  *   - `frozen` allows substituting previously recorded retrieval text verbatim for replays.
@@ -105,10 +106,12 @@ export function runAgent(options: RunAgentOptions): AgentResult {
   }
 
   // 2. Planted failure condition:
-  //    model === 'v2' AND promptText does not contain "Always use camelCase keys"
-  const isModelV2 = context.model === 'v2';
+  //    model in {'v2', 'v3'} AND promptText does not contain "Always use camelCase keys"
+  //    SIMULATED: v3 deliberately reintroduces the v2 key-naming bug to enable demo gate 11h.
+  //    Both v2 and v3 carry the same snake_case bug when the camelCase guard is absent.
+  const isModelV2orV3 = context.model === 'v2' || context.model === 'v3';
   const hasCamelCaseRule = context.promptText.includes('Always use camelCase keys');
-  const bugConditionMet = isModelV2 && !hasCamelCaseRule;
+  const bugConditionMet = isModelV2orV3 && !hasCamelCaseRule;
 
   const temperature = typeof context.config?.['temperature'] === 'number'
     ? (context.config['temperature'] as number)

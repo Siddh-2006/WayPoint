@@ -110,6 +110,7 @@ Connection string: `mongodb://localhost:27017/?directConnection=true` (local).
 | D24 | Text Match Root Cause | Gate 11c ran after collection purge (0 docs searched); 11d had active docs where "model" and "case" matched lesson-seed-1 (29% >= 25%). Pruning stopwords and distinctive token requirements resolved this. |
 | D25 | Atlas Voyage 3 RPM Trial Resilience | Implemented `QueryEmbeddingLruCache`, async startup demo precomputation, <= 1 embed call per request, and 429 fallback to `text_only` with note `"semantic search temporarily unavailable"`. |
 | D26 | Cosine Score Normalization & UI Tiering | Atlas `$vectorSearch` returns $(1+\cos)/2$. Waypoint normalizes to raw cosine $[-1, 1]$, calibrates `LESSON_MIN_SCORE = 0.48` on calibration split ($n=12$), and assigns UI tiers ("strong match" vs "weak match"). Preflight only warns on strong matches. Held-out strong-tier Hit@3 = 57% (4/7), Neg FPR = 0% (0/5); rank-only Hit@3 = 100% (7/7). |
+| D27 | Two-Signal Preflight Matching | When preflight replay produces violations, recall query is built from violation messages (like-for-like with `lesson.symptom`). Deterministic structural match fires when `lesson.violatedRules` matches new replay violations on same rule+key AND changed axes overlap lesson's culprit units, marking strong match with reason `"same rule and axes"` without threshold. |
 
 ---
 
@@ -130,6 +131,8 @@ Connection string: `mongodb://localhost:27017/?directConnection=true` (local).
 - [x] Gate 11: Real local LLM narration, prompt injection test, closed-port fallback & MCP verification  ✅ 2026-10-31
 - [x] Gate 11e: Honest threshold calibration (split n=24), UI match tiering & Voyage rate-limit resilience  ✅ 2026-10-31
 - [x] Gate 11f: Product-aligned strong-tier recall (held-out n=12), realistic preflight & client RPM pacing  ✅ 2026-10-31
+- [x] Gate 11g: Realistic preflight test, threshold provenance & weak match formatting  ✅ 2026-10-31
+- [x] Gate 11h: Violation-based recall query, structural match (deterministic) & v3 simulated bug  ✅ 2026-10-31
 
 ---
 
