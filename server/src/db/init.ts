@@ -123,8 +123,10 @@ const validators: Record<string, Document> = {
       required: ['symptom', 'culprit', 'fix', 'status', 'createdAt'],
       additionalProperties: true,
       properties: {
+        incidentId: { bsonType: ['string', 'null'] },
+        projectId: { bsonType: 'string' },
         symptom:   { bsonType: 'string' },
-        culprit:   { bsonType: 'string' },
+        culprit:   { bsonType: ['object', 'string'] },
         fix:       { bsonType: 'string' },
         embedding: { bsonType: 'array' },
         status:    { bsonType: 'string', enum: ['active','corrected','expired'] },
@@ -149,6 +151,8 @@ const indexes: IndexSpec[] = [
   { collection: 'replayCache', key: { key: 1 },                                     options: { unique: true, name: 'replay_key_unique' } },
   { collection: 'incidents',   key: { projectId: 1, badHash: 1 },                   options: { unique: true, partialFilterExpression: { status: 'open' }, name: 'incidents_open_unique' } },
   { collection: 'contracts',   key: { projectId: 1, tool: 1 },                      options: { unique: true, name: 'contracts_project_tool_unique' } },
+  { collection: 'lessons',     key: { incidentId: 1 },                              options: { unique: true, sparse: true, name: 'lessons_incidentId_unique' } },
+  { collection: 'lessons',     key: { projectId: 1, status: 1 },                    options: { name: 'lessons_project_status' } },
   // TTL: expireAfterSeconds:0 uses the expiresAt field value as the expiry moment
   { collection: 'lessons', key: { expiresAt: 1 }, options: { expireAfterSeconds: 0, name: 'lessons_ttl', sparse: true } },
 ];
@@ -207,6 +211,8 @@ export async function initDb(db: Db): Promise<void> {
           definition: {
             fields: [
               { type: 'vector', path: 'embedding', numDimensions: embedDim, similarity: 'cosine' },
+              { type: 'filter', path: 'projectId' },
+              { type: 'filter', path: 'status' },
             ],
           },
         }),

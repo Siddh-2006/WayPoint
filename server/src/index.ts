@@ -19,6 +19,8 @@ import { contractRoutes } from './contracts/routes.js';
 import { incidentRoutes } from './detect/routes.js';
 import { streamRoutes } from './stream/routes.js';
 import { replayRoutes } from './replay/routes.js';
+import { lessonRoutes } from './lessons/routes.js';
+import { preflightRoutes } from './preflight/routes.js';
 import { startDetector, stopDetector } from './detect/detector.js';
 import * as dbInit from './db/init.js';
 import fastifyStatic from '@fastify/static';
@@ -70,6 +72,8 @@ await app.register(contractRoutes);
 await app.register(incidentRoutes);
 await app.register(streamRoutes);
 await app.register(replayRoutes);
+await app.register(lessonRoutes);
+await app.register(preflightRoutes);
 
 // ─── Static Files & SPA Fallback ─────────────────────────────────────────────
 

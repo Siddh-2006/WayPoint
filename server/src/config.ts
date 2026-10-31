@@ -89,6 +89,10 @@ const schema = z.object({
   EXPERIMENT_MAX_FULL_K: z.coerce.number().int().positive().default(4),
   EXPERIMENT_PERM_SAMPLES: z.coerce.number().int().positive().default(200),
   EXPERIMENT_EPSILON: z.coerce.number().min(0).max(1).default(0.05),
+
+  // Lessons, Vector Recall & Preflight
+  LESSON_TTL_DAYS: z.coerce.number().int().positive().default(90),
+  LESSON_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.65),
 });
 
 // ─── Parse ────────────────────────────────────────────────────────────────────
