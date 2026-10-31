@@ -1,26 +1,27 @@
 /**
  * server/src/embed/provider.ts
  *
- * Pluggable embedding provider supporting:
- *   - 'voyage': Official Voyage AI Embeddings API (https://api.voyageai.com/v1/embeddings)
- *   - 'mongodb': In-engine deterministic semantic vector provider (dim 1024), 0 external keys needed
- *   - 'ollama': Local Ollama embedding endpoint
- *   - 'none':   Text-only mode; returns zero-vectors or bypasses embedding
+ * Pluggable embedding providers for Waypoint:
+ *   - 'atlas_voyage' / 'voyage': Official MongoDB Atlas Embedding and Reranking API
+ *     serving Voyage AI models (e.g. voyage-4, voyage-4-large, voyage-4-lite)
+ *     via serverless endpoints at https://ai.mongodb.com/v1
+ *   - 'ollama': Local Ollama dedicated embedding endpoint
+ *   - 'none': Text-only fallback mode
  *
- * Implements 10s timeouts, 3x exponential backoff, batching up to 128 items,
- * and startup dimension validation.
+ * Implements 10s timeouts via AbortSignal, 3x exponential backoff on 429/5xx,
+ * batching up to 128 items, strict key secrecy, and startup dimension validation.
  */
 
 export type EmbeddingInputType = 'document' | 'query';
 
 export interface EmbeddingProvider {
-  readonly name: 'voyage' | 'mongodb' | 'ollama' | 'none';
+  readonly name: 'atlas_voyage' | 'voyage' | 'ollama' | 'none';
   readonly dim: number;
   readonly model: string;
   embed(texts: string[], inputType?: EmbeddingInputType): Promise<number[][]>;
 }
 
-export interface VoyageConfig {
+export interface AtlasVoyageConfig {
   apiKey: string;
   model: string;
   dim: number;
@@ -43,7 +44,7 @@ export class EmbeddingDimensionMismatchError extends Error {
 }
 
 /**
- * NoneProvider: returns zero-length vectors; signals text-only recall mode.
+ * NoneEmbeddingProvider: returns empty vectors; signals text-only recall mode.
  */
 export class NoneEmbeddingProvider implements EmbeddingProvider {
   readonly name = 'none' as const;
@@ -56,96 +57,28 @@ export class NoneEmbeddingProvider implements EmbeddingProvider {
 }
 
 /**
- * MongoSemanticEmbeddingProvider:
- * In-engine deterministic 1024-dimensional semantic embedding projection.
- * Requires 0 external keys or external processes, ensuring reliable vector recall
- * and 100% reproducible evaluations across both local and Atlas M0 environments.
+ * AtlasVoyageEmbeddingProvider:
+ * Direct client for the official MongoDB Atlas Embedding and Reranking API (Voyage AI models).
+ * Endpoint defaults to https://ai.mongodb.com/v1/embeddings.
+ * Authenticated with MongoDB Atlas Voyage Model API Keys.
  */
-export class MongoSemanticEmbeddingProvider implements EmbeddingProvider {
-  readonly name = 'mongodb' as const;
-  readonly model = 'mongodb-semantic-v1';
-
-  private static readonly SYNONYMS: Record<string, string> = {
-    'snake case': 'underscore invoice_id naming field',
-    'underscores': 'snake_case invoice_id naming',
-    'monetary denomination': 'currency usd extract_invoice billing',
-    'floating point': 'double precision amount string number float decimal',
-    'levy': 'tax calculation subtotal billing summary',
-    'tariff': 'tax calculation subtotal billing summary',
-    'supplier corporate': 'vendor legal business entity name truncated buffer',
-    'british order': 'uk format dd/mm/yyyy date iso-8601 calendar',
-    'remittance window': 'payment terms net_30 due upon receipt',
-    'repeating identifier': 'duplicate invoice number credit memo collision',
-  };
-
-  constructor(readonly dim: number = 1024) {}
-
-  private expandText(text: string): string {
-    let lower = text.toLowerCase();
-    for (const [k, v] of Object.entries(MongoSemanticEmbeddingProvider.SYNONYMS)) {
-      if (lower.includes(k)) lower += ' ' + v;
-    }
-    return lower;
-  }
-
-  async embed(texts: string[]): Promise<number[][]> {
-    return texts.map((text) => {
-      const v = new Float64Array(this.dim);
-      const words = this.expandText(text).match(/[a-z0-9_]{2,}/g) || [];
-
-      for (const w of words) {
-        // Word token projection
-        let h1 = 0x811c9dc5;
-        for (let i = 0; i < w.length; i++) {
-          h1 ^= w.charCodeAt(i);
-          h1 = Math.imul(h1, 0x01000193);
-        }
-        const idx1 = Math.abs(h1) % this.dim;
-        const sign1 = (h1 & 1) ? 1 : -1;
-        v[idx1] = (v[idx1] ?? 0) + sign1 * 1.5;
-
-        // Subword 3-character n-grams
-        for (let i = 0; i <= w.length - 3; i++) {
-          const tri = w.slice(i, i + 3);
-          let h2 = 0x811c9dc5;
-          for (let j = 0; j < 3; j++) {
-            h2 ^= tri.charCodeAt(j);
-            h2 = Math.imul(h2, 0x01000193);
-          }
-          const idx2 = Math.abs(h2) % this.dim;
-          const sign2 = (h2 & 1) ? 1 : -1;
-          v[idx2] = (v[idx2] ?? 0) + sign2 * 0.5;
-        }
-      }
-
-      // Euclidean normalization: ||v|| = 1.0
-      let norm = 0;
-      for (let i = 0; i < this.dim; i++) norm += v[i]! * v[i]!;
-      norm = Math.sqrt(norm);
-      if (norm > 0) {
-        for (let i = 0; i < this.dim; i++) v[i] = v[i]! / norm;
-      }
-
-      return Array.from(v);
-    });
-  }
-}
-
-/**
- * Voyage AI Provider: calls official https://api.voyageai.com/v1/embeddings
- */
-export class VoyageEmbeddingProvider implements EmbeddingProvider {
-  readonly name = 'voyage' as const;
+export class AtlasVoyageEmbeddingProvider implements EmbeddingProvider {
+  readonly name = 'atlas_voyage' as const;
   readonly dim: number;
   readonly model: string;
   private readonly apiKey: string;
   private readonly baseUrl: string;
 
-  constructor(cfg: VoyageConfig) {
+  constructor(cfg: AtlasVoyageConfig) {
+    if (!cfg.apiKey) {
+      throw new Error(
+        'Atlas Voyage embedding provider requires an API key. Generate a Model API Key in MongoDB Atlas and set EMBED_API_KEY in .env.',
+      );
+    }
     this.apiKey = cfg.apiKey;
-    this.model = cfg.model;
-    this.dim = cfg.dim;
-    this.baseUrl = (cfg.baseUrl || 'https://api.voyageai.com/v1').replace(/\/$/, '');
+    this.model = cfg.model || 'voyage-4';
+    this.dim = cfg.dim || 1024;
+    this.baseUrl = (cfg.baseUrl || 'https://ai.mongodb.com/v1').replace(/\/$/, '');
   }
 
   async embed(texts: string[], inputType: EmbeddingInputType = 'document'): Promise<number[][]> {
@@ -170,6 +103,14 @@ export class VoyageEmbeddingProvider implements EmbeddingProvider {
     return allEmbeddings;
   }
 
+  private sanitizeError(errMessage: string): string {
+    // Redact any occurrence of the API key
+    if (this.apiKey) {
+      return errMessage.replaceAll(this.apiKey, '[REDACTED_API_KEY]');
+    }
+    return errMessage;
+  }
+
   private async embedBatch(batch: string[], inputType: EmbeddingInputType): Promise<number[][]> {
     const maxRetries = 3;
     let delayMs = 500;
@@ -180,6 +121,13 @@ export class VoyageEmbeddingProvider implements EmbeddingProvider {
       const timeoutId = setTimeout(() => controller.abort(), 10_000);
 
       try {
+        const payload: Record<string, unknown> = {
+          input: batch,
+          model: this.model,
+          input_type: inputType,
+          output_dimension: this.dim,
+        };
+
         const res = await fetch(`${this.baseUrl}/embeddings`, {
           method: 'POST',
           signal: controller.signal,
@@ -187,24 +135,22 @@ export class VoyageEmbeddingProvider implements EmbeddingProvider {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${this.apiKey}`,
           },
-          body: JSON.stringify({
-            input: batch,
-            model: this.model,
-            input_type: inputType,
-          }),
+          body: JSON.stringify(payload),
         });
 
         clearTimeout(timeoutId);
 
         if (!res.ok) {
           const status = res.status;
-          const errBody = await res.text().catch(() => '');
+          const rawErr = await res.text().catch(() => '');
+          const safeErr = this.sanitizeError(rawErr);
+
           if ((status === 429 || status >= 500) && attempt < maxRetries) {
             await new Promise((r) => setTimeout(r, delayMs));
             delayMs *= 2;
             continue;
           }
-          throw new Error(`Voyage API HTTP ${status}: ${errBody}`);
+          throw new Error(`MongoDB Atlas Voyage API HTTP ${status}: ${safeErr}`);
         }
 
         const data = (await res.json()) as {
@@ -215,7 +161,8 @@ export class VoyageEmbeddingProvider implements EmbeddingProvider {
         return sorted;
       } catch (err) {
         clearTimeout(timeoutId);
-        lastErr = err instanceof Error ? err : new Error(String(err));
+        const rawMsg = err instanceof Error ? err.message : String(err);
+        lastErr = new Error(this.sanitizeError(rawMsg));
         if (attempt < maxRetries) {
           await new Promise((r) => setTimeout(r, delayMs));
           delayMs *= 2;
@@ -223,12 +170,17 @@ export class VoyageEmbeddingProvider implements EmbeddingProvider {
       }
     }
 
-    throw lastErr ?? new Error('Voyage embedding request failed after retries');
+    throw lastErr ?? new Error('Atlas Voyage embedding request failed after retries');
   }
 }
 
 /**
- * Ollama Provider: calls local Ollama endpoint.
+ * Backward compatibility alias for AtlasVoyageEmbeddingProvider
+ */
+export const VoyageEmbeddingProvider = AtlasVoyageEmbeddingProvider;
+
+/**
+ * OllamaEmbeddingProvider: calls local Ollama endpoint for embeddings.
  */
 export class OllamaEmbeddingProvider implements EmbeddingProvider {
   readonly name = 'ollama' as const;

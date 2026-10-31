@@ -5,8 +5,7 @@
 import { config } from '../config.js';
 import {
   type EmbeddingProvider,
-  VoyageEmbeddingProvider,
-  MongoSemanticEmbeddingProvider,
+  AtlasVoyageEmbeddingProvider,
   OllamaEmbeddingProvider,
   NoneEmbeddingProvider,
 } from './provider.js';
@@ -16,28 +15,26 @@ let providerInstance: EmbeddingProvider | null = null;
 export function getEmbeddingProvider(): EmbeddingProvider {
   if (providerInstance) return providerInstance;
 
-  if (config.EMBED_PROVIDER === 'voyage') {
-    if (config.EMBED_API_KEY) {
-      providerInstance = new VoyageEmbeddingProvider({
-        apiKey: config.EMBED_API_KEY,
-        model: config.EMBED_MODEL || 'voyage-3-lite',
-        dim: config.EMBED_DIM,
-        baseUrl: config.EMBED_BASE_URL,
-      });
-    } else {
-      // In-engine deterministic vector provider matching MongoDB Atlas 1024-dim index
-      providerInstance = new MongoSemanticEmbeddingProvider(config.EMBED_DIM);
+  if (config.EMBED_PROVIDER === 'atlas_voyage' || config.EMBED_PROVIDER === 'voyage') {
+    if (!config.EMBED_API_KEY) {
+      throw new Error(
+        'MongoDB Atlas Voyage Embedding API requires EMBED_API_KEY. Please create a Model API Key in MongoDB Atlas and add it to .env.',
+      );
     }
-  } else if (config.EMBED_PROVIDER === 'mongodb') {
-    providerInstance = new MongoSemanticEmbeddingProvider(config.EMBED_DIM);
+    providerInstance = new AtlasVoyageEmbeddingProvider({
+      apiKey: config.EMBED_API_KEY,
+      model: config.EMBED_MODEL || 'voyage-4',
+      dim: config.EMBED_DIM || 1024,
+      baseUrl: config.EMBED_BASE_URL || 'https://ai.mongodb.com/v1',
+    });
   } else if (config.EMBED_PROVIDER === 'ollama') {
     providerInstance = new OllamaEmbeddingProvider({
       baseUrl: config.EMBED_BASE_URL || 'http://localhost:11434',
       model: config.EMBED_MODEL || 'nomic-embed-text',
-      dim: config.EMBED_DIM,
+      dim: config.EMBED_DIM || 768,
     });
   } else {
-    providerInstance = new NoneEmbeddingProvider(config.EMBED_DIM);
+    providerInstance = new NoneEmbeddingProvider(config.EMBED_DIM || 1024);
   }
 
   return providerInstance;

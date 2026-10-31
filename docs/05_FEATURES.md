@@ -52,7 +52,8 @@ Status labels: **Built** means it exists and its gate passed. **Planned** means 
 ## 6. Episodic memory: lessons (Built)
 - Resolving an incident saves symptom, culprit, change types and fix
 - Lessons can be corrected or expire automatically
-- Recall combines meaning (vectors) and exact words (text), scoped by project
+- Embeddings generated via MongoDB Atlas Embedding and Reranking API (`voyage-4`, 1024-dim, authenticated via Atlas Model API Key)
+- Recall combines semantic vectors and exact keyword tokens via Reciprocal Rank Fusion (RRF k=60), scoped by project
 - "No prior incident" is a valid, honest answer
 - Seeded example lessons are labeled so they are never mistaken for real history
 - **Feeds into:** preflight, which uses lessons to warn.
@@ -73,18 +74,21 @@ Status labels: **Built** means it exists and its gate passed. **Planned** means 
 
 ## 9. Evidence-cited narration (Built)
 - A language model writes a short readable explanation from a compact computed summary
+- Driven by real local model (`qwen2.5:3b` via Ollama) or hosted OpenAI-compatible endpoints
 - Each sentence must cite the evidence it relies on (`[F1]`, `[F2]`, etc.)
-- Strict citation validator drops unverified facts and ungrounded numbers
-- Works with a local model or a hosted one through configuration, with deterministic grounded fallback
+- Strict citation validator drops unverified facts and ungrounded numbers; prompt-injection defenses discard hostile commands
+- Deterministic grounded template fallback on timeout or validation failure
 - **Feeds into:** agent access, where the same summary is returned to coding agents.
 
 ## 10. Agent access through MCP (Built)
 - Exposes `preflight_change`, `explain_incident`, `recall_lessons`, `list_incidents`, and `get_deployment_status` as tools via stdio
+- Strictly read-only: verified 0 document writes across all collections
+- No API key leakage in tool outputs or error messages
 - Allows autonomous coding agents in Claude Desktop, Cursor, Antigravity, and CLI harnesses to run preflight verification before shipping
 - **Feeds into:** extras, where agents can trigger the same safety checks automatically.
 
 ## 11. Extras & Diagnostics (Built & Planned)
-- **Built:** `explain()` panel showing index use (`IXSCAN`), 0 `COLLSCAN`, and bounded inspected documents for all 4 diagnosis queries
+- **Built:** `explain()` panel showing index use (`IXSCAN`) and non-zero returned documents across all 4 production queries (`runs_by_project_and_context`, `events_by_run`, `contracts_by_project`, `lessons_by_project_and_status`), plus an unindexed control query confirming `COLLSCAN` detection
 - Planned: Change-point detection to timestamp when a regression began
 - Planned: Output-drift detection with embeddings
 - Planned: Sequential canary test and automatic rollback

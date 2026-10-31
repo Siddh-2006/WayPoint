@@ -49,14 +49,14 @@ const schema = z.object({
   LLM_ENABLED: boolStr,
   LLM_BASE_URL: z.string().url().optional(),
   LLM_API_KEY: z.string().optional(),
-  LLM_MODEL: z.string().optional(),
+  LLM_MODEL: z.string().default('qwen2.5:3b'),
   LLM_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).default(2500),
 
-  // Embeddings
-  EMBED_PROVIDER: z.enum(['voyage', 'mongodb', 'ollama', 'none']).default('voyage'),
+  // Embeddings (MongoDB Atlas Voyage Embedding API)
+  EMBED_PROVIDER: z.enum(['atlas_voyage', 'voyage', 'ollama', 'none']).default('atlas_voyage'),
   EMBED_BASE_URL: z.string().optional(),
   EMBED_API_KEY: z.string().optional(),
-  EMBED_MODEL: z.string().optional(),
+  EMBED_MODEL: z.string().default('voyage-4'),
   EMBED_DIM: z.coerce
     .number()
     .int()
