@@ -12,6 +12,8 @@
     "gate:2": "tsx scripts/src/gate2.ts",
     "gate:3": "tsx scripts/src/gate3.ts",
     "gate:4": "tsx scripts/src/gate4.ts",
+    "gate:5": "tsx scripts/src/gate5.ts",
+    "gate:6": "tsx scripts/src/gate6.ts",
     "db:init": "tsx scripts/src/init-db.ts",
     "test": "pnpm -r test"
   },

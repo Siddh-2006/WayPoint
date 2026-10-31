@@ -1,0 +1,22 @@
+[
+  { "id": "INV-2026-001", "vendor": "Acme Industrial Supplies", "amount": 1420.50, "currency": "USD", "date": "2026-01-12", "text": "Invoice INV-2026-001 from Acme Industrial Supplies for machine parts: $1420.50." },
+  { "id": "INV-2026-002", "vendor": "Apex Cloud Hosting", "amount": 850.00, "currency": "USD", "date": "2026-01-15", "text": "Invoice INV-2026-002 from Apex Cloud Hosting for dedicated servers: $850.00." },
+  { "id": "INV-2026-003", "vendor": "BlueFin Logistics", "amount": 3200.00, "currency": "USD", "date": "2026-01-18", "text": "Invoice INV-2026-003 from BlueFin Logistics for freight transport: $3200.00." },
+  { "id": "INV-2026-004", "vendor": "Cipher Security Labs", "amount": 5400.00, "currency": "USD", "date": "2026-01-22", "text": "Invoice INV-2026-004 from Cipher Security Labs for penetration test: $5400.00." },
+  { "id": "INV-2026-005", "vendor": "DataFlow Analytics", "amount": 920.00, "currency": "USD", "date": "2026-01-25", "text": "Invoice INV-2026-005 from DataFlow Analytics for monthly pipeline subscription: $920.00." },
+  { "id": "INV-2026-006", "vendor": "Echo Office Ergonomics", "amount": 670.25, "currency": "USD", "date": "2026-02-01", "text": "Invoice INV-2026-006 from Echo Office Ergonomics for standing desks: $670.25." },
+  { "id": "INV-2026-007", "vendor": "Frontier Broadband", "amount": 310.00, "currency": "USD", "date": "2026-02-04", "text": "Invoice INV-2026-007 from Frontier Broadband for fiber uplink: $310.00." },
+  { "id": "INV-2026-008", "vendor": "GreenLeaf Packaging", "amount": 1150.80, "currency": "USD", "date": "2026-02-08", "text": "Invoice INV-2026-008 from GreenLeaf Packaging for recyclable boxes: $1150.80." },
+  { "id": "INV-2026-009", "vendor": "HyperScale AI Compute", "amount": 8900.00, "currency": "USD", "date": "2026-02-12", "text": "Invoice INV-2026-009 from HyperScale AI Compute for GPU training hours: $8900.00." },
+  { "id": "INV-2026-010", "vendor": "Inland Power & Electric", "amount": 445.60, "currency": "USD", "date": "2026-02-16", "text": "Invoice INV-2026-010 from Inland Power & Electric for utility consumption: $445.60." },
+  { "id": "INV-2026-011", "vendor": "JetStream Air Freight", "amount": 2780.00, "currency": "USD", "date": "2026-02-20", "text": "Invoice INV-2026-011 from JetStream Air Freight for priority delivery: $2780.00." },
+  { "id": "INV-2026-012", "vendor": "Kinetics Robotics", "amount": 6300.00, "currency": "USD", "date": "2026-02-23", "text": "Invoice INV-2026-012 from Kinetics Robotics for maintenance inspection: $6300.00." },
+  { "id": "INV-2026-013", "vendor": "Luminary Design Studio", "amount": 1800.00, "currency": "USD", "date": "2026-02-27", "text": "Invoice INV-2026-013 from Luminary Design Studio for UI branding kit: $1800.00." },
+  { "id": "INV-2026-014", "vendor": "Matrix Telecom Corp", "amount": 520.40, "currency": "USD", "date": "2026-03-02", "text": "Invoice INV-2026-014 from Matrix Telecom Corp for VoIP lines: $520.40." },
+  { "id": "INV-2026-015", "vendor": "Nexus Clean Energy", "amount": 2150.00, "currency": "USD", "date": "2026-03-05", "text": "Invoice INV-2026-015 from Nexus Clean Energy for solar offset credits: $2150.00." },
+  { "id": "INV-2026-016", "vendor": "OmniGuard Compliance", "amount": 4100.00, "currency": "USD", "date": "2026-03-09", "text": "Invoice INV-2026-016 from OmniGuard Compliance for SOC-2 audit prep: $4100.00." },
+  { "id": "INV-2026-017", "vendor": "Pioneer Lab Equipment", "amount": 760.00, "currency": "USD", "date": "2026-03-13", "text": "Invoice INV-2026-017 from Pioneer Lab Equipment for calibration tools: $760.00." },
+  { "id": "INV-2026-018", "vendor": "Quantum Legal Advisory", "amount": 3500.00, "currency": "USD", "date": "2026-03-17", "text": "Invoice INV-2026-018 from Quantum Legal Advisory for patent review: $3500.00." },
+  { "id": "INV-2026-019", "vendor": "Rapid Courier Services", "amount": 285.50, "currency": "USD", "date": "2026-03-21", "text": "Invoice INV-2026-019 from Rapid Courier Services for same-day dispatch: $285.50." },
+  { "id": "INV-2026-020", "vendor": "Summit Executive Catering", "amount": 950.00, "currency": "USD", "date": "2026-03-25", "text": "Invoice INV-2026-020 from Summit Executive Catering for all-hands meeting: $950.00." }
+]

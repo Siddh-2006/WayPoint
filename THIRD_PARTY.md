@@ -23,6 +23,12 @@ Source  : https://github.com/pinojs/pino-pretty
 Usage   : Development log pretty-printing
 Verified: 2026-10-31 by agent
 
+## diff 9.x
+License : BSD-3-Clause
+Source  : https://github.com/kpdecker/jsdiff
+Usage   : Line diff for prompt text changes in contexts
+Verified: 2026-10-31 by agent
+
 ## zod 3.x
 License : MIT
 Source  : https://github.com/colinhacks/zod

@@ -13,6 +13,8 @@ import cors from '@fastify/cors';
 import { config } from './config.js';
 import { connectDb, closeDb, getClient, getDb } from './db/client.js';
 import { ingestRoutes } from './ingest/routes.js';
+import { contextRoutes } from './contexts/routes.js';
+import { demoRoutes } from './demo/routes.js';
 import * as dbInit from './db/init.js';
 
 const app = Fastify({
@@ -53,6 +55,8 @@ app.get('/health', async () => {
 });
 
 await app.register(ingestRoutes);
+await app.register(contextRoutes);
+await app.register(demoRoutes);
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 

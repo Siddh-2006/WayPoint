@@ -25,8 +25,8 @@ The demo agent is **simulated** and is labeled as such in the README.
 | DB init: collections, validators, indexes | 2 | ✅ Done |
 | Ingest API (POST /v1/events, GET /v1/runs/:runId/events) | 3 | ✅ Done |
 | Production deploy, /health vs Atlas | 4 | ⬜ Pending |
-| Content-hashed contexts + derived diff | 5 | ⬜ Pending |
-| Simulated invoice agent + SDK | 6 | ⬜ Pending |
+| Content-hashed contexts + derived diff | 5 | ✅ Done |
+| Simulated invoice agent + SDK | 6 | ✅ Done |
 | Contract mining + violations | 7 | ⬜ Pending |
 | Live dashboard via change stream | 8 | ⬜ Pending |
 | Freeze-replay grid + statistics | 9 | ⬜ Pending |
@@ -108,6 +108,8 @@ Connection string: `mongodb://localhost:27017/?directConnection=true` (local).
 - [x] Gate 2: initDb ×2 idempotent; valid insert, dup 11000, missing-ts 121, contextPayload variants  ✅ 2026-10-31
 - [x] Gate 3: 6 ingest API checks pass  ✅ 2026-10-31
 - [ ] Gate 4: Production deploy against Atlas M0 (config & gate ready, awaiting host deployment)
+- [x] Gate 5: Content-hashed contexts & derived diff (6 checks pass)  ✅ 2026-10-31
+- [x] Gate 6: Simulated agent, corpus & SDK (7 checks pass)  ✅ 2026-10-31
 
 ---
 
@@ -133,6 +135,7 @@ Key runtime dependencies:
 - `mongodb@6` — Apache-2.0
 - `@fastify/cors` — MIT
 - `pino-pretty` — MIT
+- `diff@9` — BSD-3-Clause
 - `tsx` — MIT
 - `vitest@2` — MIT
 
@@ -140,10 +143,6 @@ Key runtime dependencies:
 
 ## Next Step
 
-**Run Gate 4** (`pnpm gate:4`):
-1. Create MongoDB Atlas M0 cluster + DB user + network access `0.0.0.0/0`.
-2. Connect repo to Railway or Render (configs `railway.toml` and `render.yaml` are generated).
-3. Set environment variables on the host dashboard (see deployment guide in chat).
-4. Deploy and verify `GET /health` returns `{ ok: true, mongo: "up", searchIndexes: "ready|pending|failed" }`.
-5. Set `BASE_URL`, `API_KEY`, `MONGODB_URI`, `MONGODB_DB` in local `.env` and run `pnpm gate:4`.
-6. Disable auto-deploy on host dashboard before the deadline freeze.
+**Prompt 7: Contract mining, violations, and change-stream detector**
+- Gates 5 & 6 are complete and passed.
+- Production deployment (Gate 4) is ready for live host trigger.
