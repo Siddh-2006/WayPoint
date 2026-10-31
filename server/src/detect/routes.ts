@@ -12,6 +12,8 @@ import { getDb } from '../db/client.js';
 import { config } from '../config.js';
 import { startDetector, stopDetector } from './detector.js';
 
+import { isPublicDemoProject } from '../demo/sandbox.js';
+
 export async function incidentRoutes(app: FastifyInstance): Promise<void> {
   const db = getDb();
   const incidentsCol = db.collection('incidents');
@@ -33,7 +35,7 @@ export async function incidentRoutes(app: FastifyInstance): Promise<void> {
     '/v1/incidents',
     async (req, reply) => {
       const projectId = req.query.projectId ?? 'demo';
-      const isPublic = config.READ_PUBLIC_PROJECTS.includes(projectId);
+      const isPublic = isPublicDemoProject(projectId);
       const key = req.headers['x-api-key'];
       const hasValidKey = typeof key === 'string' && config.API_KEYS.includes(key);
 

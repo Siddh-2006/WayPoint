@@ -31,6 +31,10 @@ export interface RecallResultItem {
   lessonId: string;
   score: number;
   scoreType: ScoreType;
+  /** True raw cosine similarity against the query vector (when vector search participated) */
+  cosine?: number | undefined;
+  /** Combined reciprocal rank fusion rank (when RRF was used) */
+  rrfRank?: number | undefined;
   tier: MatchTier;
   why: string;
   /** Deterministic structural match reason — present when same rule+key+axes fire (no threshold) */
@@ -242,7 +246,7 @@ export async function recallLessons(
   }
 
   // 3. Handle explicit vector_only mode
-  if (targetMode === 'vector_only') {
+    if (targetMode === 'vector_only') {
     const vectorResults: RecallResultItem[] = Array.from(vectorRanks.values())
       .filter((item) => item.score >= floorThreshold)
       .slice(0, limit)
@@ -253,6 +257,7 @@ export async function recallLessons(
           lessonId: item.lesson._id,
           score: item.score,
           scoreType: 'cosine',
+          cosine: item.score,
           tier: isStrong ? 'strong match' : 'weak match',
           why: `Vector cosine similarity: ${item.score.toFixed(3)} [${isStrong ? 'strong match' : 'weak match'}]`,
           lesson: item.lesson,
@@ -344,6 +349,7 @@ export async function recallLessons(
       lessonId: docId,
       score: Math.round(score * 1000) / 1000,
       scoreType,
+      cosine: vecItem ? vecItem.score : undefined,
       tier,
       why: `${reasons.join('; ')} [${tier}]`,
       lesson,
@@ -360,6 +366,8 @@ export async function recallLessons(
       lessonId: item.lessonId,
       score: item.score,
       scoreType: item.scoreType,
+      cosine: (item as any).cosine,
+      rrfRank: idx + 1,
       tier: item.tier,
       why: item.why,
       lesson: item.lesson,

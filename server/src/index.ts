@@ -26,6 +26,7 @@ import { debugRoutes } from './debug/routes.js';
 import { startDetector, stopDetector } from './detect/detector.js';
 import { precomputeDemoEmbeddings } from './embed/precompute.js';
 import * as dbInit from './db/init.js';
+import { execSync } from 'node:child_process';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -64,6 +65,23 @@ app.get('/health', async () => {
     ok: mongo === 'up',
     mongo,
     searchIndexes: dbInit.searchIndexStatus,
+    time: new Date().toISOString(),
+  };
+});
+
+let cachedGitSha: string = 'unknown';
+try {
+  cachedGitSha = execSync('git rev-parse HEAD', { encoding: 'utf-8', timeout: 2000 }).trim();
+} catch {
+  // in container/prod without git, fallback to env GIT_SHA or unknown
+  cachedGitSha = process.env['GIT_SHA'] || 'prod-release';
+}
+
+app.get('/v1/meta/version', async () => {
+  return {
+    gitSha: cachedGitSha,
+    service: 'waypoint',
+    nodeEnv: config.NODE_ENV,
     time: new Date().toISOString(),
   };
 });

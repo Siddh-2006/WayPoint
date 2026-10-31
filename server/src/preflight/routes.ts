@@ -14,13 +14,15 @@ import { runPreflight } from './service.js';
 import { BaselinePrerequisiteError } from '../replay/engine.js';
 import type { ContextData } from '../contexts/hash.js';
 
+import { isPublicDemoProject } from '../demo/sandbox.js';
+
 function isAuthorized(apiKey: string | undefined): boolean {
   if (!apiKey) return false;
   return config.API_KEYS.includes(apiKey);
 }
 
 function isPublicProject(projectId: string): boolean {
-  return config.READ_PUBLIC_PROJECTS.includes(projectId);
+  return isPublicDemoProject(projectId);
 }
 
 const ContextSchema = z.object({

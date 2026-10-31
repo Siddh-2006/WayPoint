@@ -116,7 +116,7 @@ export async function runPreflight(
     for (let s = 1; s <= samples; s++) {
       const numId = parseInt(input.id.replace(/\D/g, ''), 10) || (idx + 1);
       const seed = numId * 1000 + s;
-      const cacheKey = `replay:preflight:${proposedHash}:${input.id}:${seed}:v1`;
+      const cacheKey = `replay:preflight:${projectId}:${proposedHash}:${input.id}:${seed}:v1`;
 
       let isViolation = false;
       const cached = await replayCacheCol.findOne({ key: cacheKey });

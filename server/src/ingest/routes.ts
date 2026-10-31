@@ -17,6 +17,8 @@ import { redact } from './redact.js';
 import type { EventDoc } from './schema.js';
 import { checkRun, type ContractDoc } from '../contracts/check.js';
 
+import { isPublicDemoProject } from '../demo/sandbox.js';
+
 /** Document shape stored in the `events` collection (string _id). */
 interface StoredEvent {
   _id: string;
@@ -60,9 +62,7 @@ export async function ingestRoutes(app: FastifyInstance): Promise<void> {
       config: { rawBody: false },
     },
     async (req, reply) => {
-      if (!requireApiKey(req, reply)) return;
-
-      // 1. Parse & validate body
+      // 1. Parse & validate body first
       const parseResult = IngestBodySchema.safeParse(req.body);
       if (!parseResult.success) {
         return reply.code(422).send({
@@ -72,6 +72,8 @@ export async function ingestRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const events = parseResult.data; // always an array after the transform
+      const isPublicBatch = events.every((e) => isPublicDemoProject(e.projectId));
+      if (!isPublicBatch && !requireApiKey(req, reply)) return;
 
       // 2. Build docs to insert
       const results: EventResult[] = [];

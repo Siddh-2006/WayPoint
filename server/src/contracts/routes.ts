@@ -12,6 +12,8 @@ import { config } from '../config.js';
 import { getDb } from '../db/client.js';
 import { mineContracts } from './mine.js';
 
+import { isPublicDemoProject } from '../demo/sandbox.js';
+
 function requireApiKey(req: FastifyRequest, reply: FastifyReply): boolean {
   const key = req.headers['x-api-key'];
   if (typeof key !== 'string' || !config.API_KEYS.includes(key)) {
@@ -32,9 +34,15 @@ export async function contractRoutes(app: FastifyInstance): Promise<void> {
   app.post<{ Params: { projectId: string } }>(
     '/v1/projects/:projectId/baseline',
     async (req, reply) => {
-      if (!requireApiKey(req, reply)) return;
-
       const { projectId } = req.params;
+      const key = req.headers['x-api-key'];
+      const hasValidKey = typeof key === 'string' && config.API_KEYS.includes(key);
+
+      // Allow public demo sandboxes to set baseline without requiring server API key
+      if (!isPublicDemoProject(projectId) && !hasValidKey) {
+        return reply.code(401).send({ error: 'Unauthorized: invalid or missing x-api-key' });
+      }
+
       const parseResult = BaselineBodySchema.safeParse(req.body);
       if (!parseResult.success) {
         return reply.code(422).send({
@@ -52,7 +60,7 @@ export async function contractRoutes(app: FastifyInstance): Promise<void> {
   // GET /v1/contracts?projectId=
   app.get<{ Querystring: { projectId?: string } }>('/v1/contracts', async (req, reply) => {
     const projectId = req.query.projectId ?? 'demo';
-    const isPublic = config.READ_PUBLIC_PROJECTS.includes(projectId);
+    const isPublic = isPublicDemoProject(projectId);
     const key = req.headers['x-api-key'];
     const hasValidKey = typeof key === 'string' && config.API_KEYS.includes(key);
 

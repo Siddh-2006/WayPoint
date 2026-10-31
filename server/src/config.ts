@@ -104,6 +104,12 @@ const schema = z.object({
   // Lessons, Vector Recall & Preflight
   LESSON_TTL_DAYS: z.coerce.number().int().positive().default(90),
   LESSON_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.48),
+
+  // Demo sandboxes & rate limits
+  READ_PUBLIC_PREFIX: z.string().default('demo-'),
+  MAX_SANDBOXES: z.coerce.number().int().positive().default(50),
+  SANDBOX_TTL_HOURS: z.coerce.number().int().positive().default(2),
+  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
 });
 
 // ─── Parse ────────────────────────────────────────────────────────────────────

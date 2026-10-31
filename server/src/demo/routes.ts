@@ -22,6 +22,14 @@ import { runAgent, type InvoiceInput } from './invoice-agent.js';
 import { redact } from '../ingest/redact.js';
 import { checkRun, type ContractDoc } from '../contracts/check.js';
 import { mineContracts } from '../contracts/mine.js';
+import {
+  deriveSandbox,
+  acquireResetLock,
+  releaseResetLock,
+  checkRateLimit,
+  cleanupExpiredSandboxes,
+  isPublicDemoProject,
+} from './sandbox.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CORPUS_PATH = resolve(__dirname, './corpus.json');
@@ -40,7 +48,7 @@ const ScenarioEnum = z.enum(['good', 'bad_deploy', 'model_only', 'prompt_only'])
 
 const ScenarioBodySchema = z.object({
   scenarioId: ScenarioEnum,
-  projectId: z.string().optional().default('invoice-demo'),
+  projectId: z.string().optional(),
 });
 
 interface ScenarioDefinition {
@@ -131,7 +139,13 @@ export async function demoRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    const { scenarioId, projectId } = parseResult.data;
+    let targetProjectId = parseResult.data.projectId;
+    if (!targetProjectId) {
+      const sessionHdr = req.headers['x-demo-session'] as string | undefined;
+      const derived = deriveSandbox(sessionHdr);
+      targetProjectId = derived ? derived.projectId : 'demo';
+    }
+    const projectId = targetProjectId;
     const scenario = SCENARIOS[scenarioId];
     const contextData = scenario.context;
 
@@ -265,5 +279,140 @@ export async function demoRoutes(app: FastifyInstance): Promise<void> {
       eventsCount: allEvents.length,
       status: 'ok',
     });
+  });
+
+  // POST /v1/demo/story/reset — Reset and seed the caller's per-session sandbox
+  app.post('/v1/demo/story/reset', async (req, reply) => {
+    // 1. Rate limit per IP / session
+    const ip = req.ip || '127.0.0.1';
+    const sessionHdr = req.headers['x-demo-session'] as string | undefined;
+    const rateKey = `reset:${sessionHdr || ip}`;
+    const rl = checkRateLimit(rateKey, 20); // 20 resets per minute limit
+    if (!rl.allowed) {
+      return reply.code(429).send({ error: 'Too many requests: rate limit exceeded for demo reset' });
+    }
+
+    // 2. Resolve sandbox from header or query
+    const sandbox = deriveSandbox(sessionHdr || (req.query as any)?.sessionId);
+    if (!sandbox) {
+      return reply.code(400).send({
+        error: 'Invalid or missing x-demo-session header (must be a valid UUID)',
+      });
+    }
+
+    const { projectId } = sandbox;
+    // Strict safety check: Must start with "demo-"
+    if (!projectId.startsWith('demo-')) {
+      return reply.code(403).send({ error: 'Forbidden: invalid sandbox prefix' });
+    }
+
+    // 3. Concurrency lock per sandbox
+    if (!acquireResetLock(projectId)) {
+      return reply.code(409).send({ error: 'Sandbox reset already in progress for this session' });
+    }
+
+    try {
+      // 4. Delete ONLY documents for this specific sandbox projectId
+      const collections = [
+        'runs',
+        'events',
+        'contexts',
+        'deployments',
+        'contracts',
+        'incidents',
+        'experiments',
+        'lessons',
+        'replayCache',
+      ];
+      for (const colName of collections) {
+        await db.collection(colName).deleteMany({ projectId });
+      }
+
+      // 5. Seed baseline context & runs
+      const baselineContext = SCENARIOS.good.context;
+      const baselineHash = hashContext(baselineContext);
+
+      await db.collection('contexts').updateOne(
+        { contentHash: baselineHash },
+        {
+          $setOnInsert: {
+            contentHash: baselineHash,
+            model: baselineContext.model,
+            promptText: baselineContext.promptText,
+            config: baselineContext.config ?? {},
+            toolSchemas: baselineContext.toolSchemas ?? {},
+            deps: baselineContext.deps ?? {},
+            parentHash: null,
+            createdAt: new Date(),
+          },
+        },
+        { upsert: true },
+      );
+
+      // Seed 12 baseline runs
+      const corpus = getCorpus();
+      const baseRuns = corpus.slice(0, 12).map((input, idx) => {
+        const runId = `demo_base_${Date.now()}_${input.id}`;
+        return {
+          runId,
+          projectId,
+          contextHash: baselineHash,
+          status: 'completed' as const,
+          violations: [],
+          startedAt: new Date(Date.now() - (12 - idx) * 60_000),
+          endedAt: new Date(Date.now() - (12 - idx) * 60_000),
+          inputId: input.id,
+        };
+      });
+      await runsCol.insertMany(baseRuns, { ordered: false });
+
+      // Record deployment baseline
+      await db.collection('deployments').updateOne(
+        { projectId },
+        { $set: { projectId, baselineHash, updatedAt: new Date() } },
+        { upsert: true },
+      );
+
+      // Auto-mine contract
+      await mineContracts(db, projectId, baselineHash);
+
+      // 6. Reseed SEEDED lessons (tagged with source: 'seed' and badge)
+      const seededLesson = {
+        _id: `seed_lesson_${projectId}`,
+        incidentId: `seed_inc_${projectId}`,
+        projectId,
+        symptom: 'Contract violation: required key invoiceId missing; found similar key invoice_id in tool arguments (1 occurrences).',
+        culprit: { units: ['model', 'prompt'], shapley: { model: 0.7, prompt: 0.3 }, interaction: true },
+        changeTypes: ['model', 'prompt'],
+        fix: 'Enforce camelCase parameter naming in tool arguments',
+        source: 'seed' as const,
+        status: 'active' as const,
+        embedding: [],
+        violatedRules: [
+          { rule: 'unexpected_similar_key' as const, expectedKey: 'invoiceId', tool: 'create_invoice' },
+        ],
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 90 * 86_400_000),
+      };
+      await db.collection('lessons').insertOne(seededLesson as any);
+
+      return reply.send({
+        status: 'ok',
+        projectId,
+        sessionId: sandbox.sessionId,
+        baselineHash,
+        baselineRunsSeeded: baseRuns.length,
+        seededLessonsCount: 1,
+        message: 'Sandbox cleanly reset and seeded',
+      });
+    } finally {
+      releaseResetLock(projectId);
+    }
+  });
+
+  // POST /v1/demo/sandbox/cleanup — Run background TTL cleanup
+  app.post('/v1/demo/sandbox/cleanup', async (_req, reply) => {
+    const result = await cleanupExpiredSandboxes(db);
+    return reply.send(result);
   });
 }

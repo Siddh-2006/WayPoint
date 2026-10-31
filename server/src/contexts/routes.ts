@@ -15,6 +15,8 @@ import { getDb } from '../db/client.js';
 import { hashContext, type ContextData } from './hash.js';
 import { diffContexts, type ContextChange } from './diff.js';
 
+import { isPublicDemoProject } from '../demo/sandbox.js';
+
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 export const CreateContextSchema = z.object({
@@ -48,14 +50,21 @@ export async function contextRoutes(app: FastifyInstance): Promise<void> {
 
   // ── POST /v1/contexts ──────────────────────────────────────────────────────
   app.post('/v1/contexts', async (req, reply) => {
-    if (!requireApiKey(req, reply)) return;
-
     const parseResult = CreateContextSchema.safeParse(req.body);
     if (!parseResult.success) {
       return reply.code(422).send({
         error: 'Validation failed',
         issues: parseResult.error.errors,
       });
+    }
+
+    const { projectId } = parseResult.data;
+    const isPublic = isPublicDemoProject(projectId);
+    const key = req.headers['x-api-key'];
+    const hasValidKey = typeof key === 'string' && config.API_KEYS.includes(key);
+
+    if (!isPublic && !hasValidKey) {
+      return reply.code(401).send({ error: 'Unauthorized: invalid or missing x-api-key' });
     }
 
     const { projectId, model, promptText, config: cfg, toolSchemas, deps } = parseResult.data;

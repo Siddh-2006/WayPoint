@@ -18,13 +18,15 @@ import {
   ExperimentAlreadyRunningError,
 } from './engine.js';
 
+import { isPublicDemoProject } from '../demo/sandbox.js';
+
 function isAuthorized(apiKeyHeader: string | undefined): boolean {
   if (!apiKeyHeader) return false;
   return config.API_KEYS.includes(apiKeyHeader);
 }
 
 function isPublicProject(projectId: string): boolean {
-  return config.READ_PUBLIC_PROJECTS.includes(projectId);
+  return isPublicDemoProject(projectId);
 }
 
 export async function replayRoutes(app: FastifyInstance): Promise<void> {

@@ -16,13 +16,15 @@ import { resolveIncident, patchLesson, listLessons } from './service.js';
 import { recallLessons } from './recall.js';
 import { toObjectIdOrString } from '../replay/engine.js';
 
+import { isPublicDemoProject } from '../demo/sandbox.js';
+
 function isAuthorized(apiKey: string | undefined): boolean {
   if (!apiKey) return false;
   return config.API_KEYS.includes(apiKey);
 }
 
 function isPublicProject(projectId: string): boolean {
-  return config.READ_PUBLIC_PROJECTS.includes(projectId);
+  return isPublicDemoProject(projectId);
 }
 
 const ResolveBodySchema = z.object({

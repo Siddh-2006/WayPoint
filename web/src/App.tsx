@@ -17,6 +17,8 @@ import { ContractsPage } from './pages/ContractsPage.js';
 import { ExperimentsPage } from './pages/ExperimentsPage.js';
 import { LessonsPage } from './pages/LessonsPage.js';
 import { PreflightPage } from './pages/PreflightPage.js';
+import { DemoGuidePage } from './pages/DemoGuidePage.js';
+import { HardCasePanel } from './pages/HardCasePanel.js';
 
 export default function App() {
   const navigate = useNavigate();
@@ -221,6 +223,30 @@ export default function App() {
               <ShieldCheck className="w-3.5 h-3.5" />
               Preflight
             </NavLink>
+
+            <NavLink
+              to="/guide"
+              className={({ isActive }) =>
+                `px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
+                  isActive ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`
+              }
+            >
+              <Compass className="w-3.5 h-3.5" />
+              Demo Story
+            </NavLink>
+
+            <NavLink
+              to="/hardcases"
+              className={({ isActive }) =>
+                `px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
+                  isActive ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`
+              }
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Hard Cases
+            </NavLink>
           </nav>
 
           {/* SSE Connection Status Pill */}
@@ -302,6 +328,8 @@ export default function App() {
           <Route path="/experiments" element={<ExperimentsPage />} />
           <Route path="/lessons" element={<LessonsPage />} />
           <Route path="/preflight" element={<PreflightPage />} />
+          <Route path="/guide" element={<DemoGuidePage />} />
+          <Route path="/hardcases" element={<HardCasePanel />} />
         </Routes>
       </main>
 
