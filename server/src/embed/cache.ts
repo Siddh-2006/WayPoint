@@ -84,3 +84,4 @@ export function getQueryEmbeddingCache(capacity = 256): QueryEmbeddingLruCache {
   }
   return globalCache;
 }
+

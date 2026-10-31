@@ -58,8 +58,8 @@ Status labels: **Built** means it exists and its gate passed. **Planned** means 
   - Calibrated threshold `LESSON_MIN_SCORE = 0.48` on calibration split
   - Raw cosine score normalization across Atlas Vector Search and in-memory fallback
   - UI tiering: "strong match" (triggers warning) vs "weak match" (verdict remains pass)
-  - Held-out test performance: Hit@3 = 100% (target $\ge 80\%$), Negative FPR = 0% (target $\le 20\%$)
-- Rate limit resilience: `QueryEmbeddingLruCache`, demo precomputation at startup, and graceful fallback to `text_only` with note `"semantic search temporarily unavailable"` on HTTP 429
+  - Held-out test performance ($n=12$): Strong-tier Hit@1 = 57% (4/7), Strong-tier Hit@3 = 57% (4/7), Negative False-Warning Rate = 0% (0/5). Rank-only Hit@3 without cutoff is 100% (7/7).
+- Rate limit resilience: `EMBED_MAX_RPM = 3` client pacing, `QueryEmbeddingLruCache`, demo precomputation at startup, and graceful fallback to `text_only` with note `"semantic search temporarily unavailable"` on HTTP 429
 - "No prior incident" is a valid, honest answer
 - Seeded example lessons are labeled so they are never mistaken for real history
 - **Feeds into:** preflight, which uses lessons to warn.

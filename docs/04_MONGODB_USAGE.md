@@ -55,7 +55,8 @@ Waypoint's data is messy and varied (prompt text, JSON settings, tool calls, vec
   - **Score Normalization:** Atlas Vector Search computes score as $(1 + \cos)/2$; Waypoint normalizes this back to raw cosine $[-1, 1]$ so thresholds remain consistent across Atlas and in-memory execution.
   - **Threshold Calibration:** `LESSON_MIN_SCORE = 0.48` chosen on calibration split to suppress false positives on domain-near negative queries.
   - **UI Tiering:** `score >= 0.48` or exact identifier match gives "strong match" (`similar: true`, triggers Preflight warning). Faint similarity gives "weak match" (`similar: false`, verdict remains `pass`).
-  - **Rate Limit Resilience:** Standard Voyage trial limit is 3 RPM / 10K TPM. Waypoint implements an LRU query cache (`QueryEmbeddingLruCache`), precomputes demo embeddings asynchronously at startup, limits requests to $\le 1$ embed call, and gracefully falls back to `text_only` on 429/network errors with note `"semantic search temporarily unavailable"` (never 500).
+  - **Held-Out Strong-Tier Performance ($n=12$):** Strong Hit@1 = 57% (4/7), Strong Hit@3 = 57% (4/7), Negative False-Warning Rate = 0% (0/5). (Rank-only Hit@3 without threshold is 100%).
+  - **Rate Limit Resilience:** Official Voyage limits are 3 RPM / 10K TPM on trial, scaling to 2,000 RPM / 3M TPM when billing info is attached (using the 200M free tokens). Waypoint implements `EMBED_MAX_RPM = 3` client-side request pacing, an LRU query cache (`QueryEmbeddingLruCache`), non-blocking startup demo precomputation, and graceful fallback to `text_only` on 429/timeout with note `"semantic search temporarily unavailable"` (never 500).
 
 ## 5. Planned MongoDB additions
 - An `explain()` panel in the UI showing which index each diagnosis query used

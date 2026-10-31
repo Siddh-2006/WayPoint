@@ -67,6 +67,11 @@ const schema = z.object({
     .int()
     .positive('EMBED_CACHE_SIZE must be a positive integer')
     .default(256),
+  EMBED_MAX_RPM: z.coerce
+    .number()
+    .int()
+    .positive('EMBED_MAX_RPM must be a positive integer')
+    .default(3),
 
   // Background worker
   WORKER_ENABLED: boolStr,

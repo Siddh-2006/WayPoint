@@ -26,6 +26,7 @@ export interface AtlasVoyageConfig {
   model: string;
   dim: number;
   baseUrl?: string | undefined;
+  maxRpm?: number | undefined;
 }
 
 export interface OllamaConfig {
@@ -68,6 +69,9 @@ export class AtlasVoyageEmbeddingProvider implements EmbeddingProvider {
   readonly model: string;
   private readonly apiKey: string;
   private readonly baseUrl: string;
+  private readonly maxRpm: number;
+  private lastRequestTime = 0;
+  private queuePromise: Promise<void> = Promise.resolve();
 
   constructor(cfg: AtlasVoyageConfig) {
     if (!cfg.apiKey) {
@@ -78,6 +82,7 @@ export class AtlasVoyageEmbeddingProvider implements EmbeddingProvider {
     this.apiKey = cfg.apiKey;
     this.model = cfg.model || 'voyage-4';
     this.dim = cfg.dim || 1024;
+    this.maxRpm = cfg.maxRpm && cfg.maxRpm > 0 ? cfg.maxRpm : 3;
     let url = (cfg.baseUrl || 'https://ai.mongodb.com/v1').trim().replace(/\/+$/, '');
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = `https://${url}`;
@@ -86,6 +91,24 @@ export class AtlasVoyageEmbeddingProvider implements EmbeddingProvider {
       url = `${url}/v1`;
     }
     this.baseUrl = url;
+  }
+
+  private async waitForSlot(): Promise<void> {
+    const minIntervalMs = Math.ceil(60_000 / this.maxRpm);
+    const prev = this.queuePromise;
+    let release: () => void = () => {};
+    this.queuePromise = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    await prev;
+    const now = Date.now();
+    const elapsed = now - this.lastRequestTime;
+    if (elapsed < minIntervalMs && this.lastRequestTime > 0) {
+      await new Promise((r) => setTimeout(r, minIntervalMs - elapsed));
+    }
+    this.lastRequestTime = Date.now();
+    release();
   }
 
   async embed(texts: string[], inputType: EmbeddingInputType = 'document'): Promise<number[][]> {
@@ -124,6 +147,7 @@ export class AtlasVoyageEmbeddingProvider implements EmbeddingProvider {
     let lastErr: Error | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      await this.waitForSlot();
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10_000);
 

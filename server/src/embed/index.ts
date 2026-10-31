@@ -28,6 +28,7 @@ export function getEmbeddingProvider(): EmbeddingProvider {
       model: config.EMBED_MODEL || 'voyage-4',
       dim: config.EMBED_DIM || 1024,
       baseUrl: config.EMBED_BASE_URL || 'https://ai.mongodb.com/v1',
+      maxRpm: config.EMBED_MAX_RPM,
     });
   } else if (config.EMBED_PROVIDER === 'ollama') {
     providerInstance = new OllamaEmbeddingProvider({

@@ -47,3 +47,4 @@ export async function precomputeDemoEmbeddings(): Promise<void> {
     console.warn(`[Waypoint] Non-fatal: demo query embedding precomputation skipped: ${err?.message ?? 'error'}`);
   }
 }
+
