@@ -54,6 +54,12 @@ Status labels: **Built** means it exists and its gate passed. **Planned** means 
 - Lessons can be corrected or expire automatically
 - Embeddings generated via MongoDB Atlas Embedding and Reranking API (`voyage-4`, 1024-dim, authenticated via Atlas Model API Key)
 - Recall combines semantic vectors and exact keyword tokens via Reciprocal Rank Fusion (RRF k=60), scoped by project
+- Honest threshold calibration on held-out eval set ($n=24$ queries, 12 calibration / 12 held-out):
+  - Calibrated threshold `LESSON_MIN_SCORE = 0.48` on calibration split
+  - Raw cosine score normalization across Atlas Vector Search and in-memory fallback
+  - UI tiering: "strong match" (triggers warning) vs "weak match" (verdict remains pass)
+  - Held-out test performance: Hit@3 = 100% (target $\ge 80\%$), Negative FPR = 0% (target $\le 20\%$)
+- Rate limit resilience: `QueryEmbeddingLruCache`, demo precomputation at startup, and graceful fallback to `text_only` with note `"semantic search temporarily unavailable"` on HTTP 429
 - "No prior incident" is a valid, honest answer
 - Seeded example lessons are labeled so they are never mistaken for real history
 - **Feeds into:** preflight, which uses lessons to warn.

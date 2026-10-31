@@ -24,6 +24,7 @@ import { preflightRoutes } from './preflight/routes.js';
 import { narrationRoutes } from './narrate/routes.js';
 import { debugRoutes } from './debug/routes.js';
 import { startDetector, stopDetector } from './detect/detector.js';
+import { precomputeDemoEmbeddings } from './embed/precompute.js';
 import * as dbInit from './db/init.js';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
@@ -123,6 +124,9 @@ async function start(): Promise<void> {
     { port: config.PORT, env: config.NODE_ENV },
     'Waypoint server ready',
   );
+
+  // Asynchronously precompute demo embeddings (non-blocking, failure-tolerant)
+  void precomputeDemoEmbeddings();
 }
 
 // ─── Graceful shutdown ────────────────────────────────────────────────────────

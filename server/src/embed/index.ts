@@ -17,9 +17,11 @@ export function getEmbeddingProvider(): EmbeddingProvider {
 
   if (config.EMBED_PROVIDER === 'atlas_voyage' || config.EMBED_PROVIDER === 'voyage') {
     if (!config.EMBED_API_KEY) {
-      throw new Error(
-        'MongoDB Atlas Voyage Embedding API requires EMBED_API_KEY. Please create a Model API Key in MongoDB Atlas and add it to .env.',
+      console.warn(
+        '[Waypoint] Warning: EMBED_API_KEY not configured. Falling back to NoneEmbeddingProvider (text_only recall).',
       );
+      providerInstance = new NoneEmbeddingProvider(config.EMBED_DIM || 1024);
+      return providerInstance;
     }
     providerInstance = new AtlasVoyageEmbeddingProvider({
       apiKey: config.EMBED_API_KEY,
@@ -38,4 +40,8 @@ export function getEmbeddingProvider(): EmbeddingProvider {
   }
 
   return providerInstance;
+}
+
+export function setEmbeddingProviderForTest(provider: EmbeddingProvider | null): void {
+  providerInstance = provider;
 }

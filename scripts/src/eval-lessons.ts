@@ -41,7 +41,7 @@ export interface ModeMetrics {
 export async function runLessonsEval(
   mongoUri = MONGODB_URI,
   dbName = MONGODB_DB,
-  minScore = 0.25,
+  minScore = 0.48,
 ): Promise<{
   modes: Record<'text_only' | 'vector_only' | 'rrf', ModeMetrics>;
   hardParaphraseCompare: { query: string; expected: string; textRank: number | null; rrfRank: number | null };
@@ -89,14 +89,15 @@ export async function runLessonsEval(
   await new Promise((r) => setTimeout(r, 25_000));
 
   // Pre-embed all unique query strings in a single batch request to stay within Atlas Voyage 3 RPM trial limit
-  const { queryEmbeddingCache } = await import('../../server/src/lessons/recall.js');
+  const { getQueryEmbeddingCache } = await import('../../server/src/embed/cache.js');
+  const cache = getQueryEmbeddingCache();
   const uniqueQueries = Array.from(new Set(evalData.queries.map((q: any) => q.query))) as string[];
   console.log(`[Voyage Eval] Embedding ${uniqueQueries.length} unique queries in 1 batch...`);
   const queryVectors = await provider.embed(uniqueQueries, 'query');
   console.log(`[Voyage Eval] Successfully pre-embedded ${uniqueQueries.length} queries.`);
   uniqueQueries.forEach((q, idx) => {
     if (queryVectors[idx]) {
-      queryEmbeddingCache.set(q, queryVectors[idx]);
+      cache.set(provider.model, q, queryVectors[idx]);
     }
   });
 

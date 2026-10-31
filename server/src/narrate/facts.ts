@@ -130,10 +130,10 @@ export function buildFacts(
   if (lessons && lessons.length > 0) {
     lessons.slice(0, 2).forEach((l, idx) => {
       const fid = `F${5 + idx}`;
-      const scorePct = (l.score * 100).toFixed(0);
       const symptom = truncateText(l.lesson.symptom, 100);
       const fix = truncateText(l.lesson.fix, 100);
-      const fText = `Prior episodic lesson ${l.lessonId} (similarity ${scorePct}%) noted symptom "${symptom}" with remediation: "${fix}".`;
+      const scoreStr = l.score.toFixed(3);
+      const fText = `Prior episodic lesson ${l.lessonId} [strong match, score ${scoreStr}] noted symptom "${symptom}" with remediation: "${fix}".`;
       facts.push({
         id: fid,
         label: `Prior Lesson (${l.lessonId})`,

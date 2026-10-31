@@ -50,6 +50,12 @@ Waypoint's data is messy and varied (prompt text, JSON settings, tool calls, vec
 - **Local:** MongoDB with replica set support in Docker. Embeddings generated via MongoDB Atlas Embedding API (`voyage-4` via Voyage AI) or local Ollama, with vector similarity search running in Atlas or fallback in-memory cosine ranking.
 - **Production:** MongoDB Atlas (M0/M10). Uses Atlas Vector Search (`$vectorSearch` on `lessons_vector`) and Atlas Text Search (`$search` on `lessons_text`), combined via Reciprocal Rank Fusion (RRF k=60).
 - Embeddings are generated client-side via MongoDB's serverless Atlas Embedding & Reranking API (`https://ai.mongodb.com/v1`, using Voyage AI models with 200M free organization tokens).
+- **Episodic Memory Calibration & Resilience ($n=24$ eval set):**
+  - **Deterministic Split:** Even queries ($n=12$, 7 pos / 5 neg) calibrate threshold; odd queries ($n=12$, 7 pos / 5 neg) serve as strictly held-out test.
+  - **Score Normalization:** Atlas Vector Search computes score as $(1 + \cos)/2$; Waypoint normalizes this back to raw cosine $[-1, 1]$ so thresholds remain consistent across Atlas and in-memory execution.
+  - **Threshold Calibration:** `LESSON_MIN_SCORE = 0.48` chosen on calibration split to suppress false positives on domain-near negative queries.
+  - **UI Tiering:** `score >= 0.48` or exact identifier match gives "strong match" (`similar: true`, triggers Preflight warning). Faint similarity gives "weak match" (`similar: false`, verdict remains `pass`).
+  - **Rate Limit Resilience:** Standard Voyage trial limit is 3 RPM / 10K TPM. Waypoint implements an LRU query cache (`QueryEmbeddingLruCache`), precomputes demo embeddings asynchronously at startup, limits requests to $\le 1$ embed call, and gracefully falls back to `text_only` on 429/network errors with note `"semantic search temporarily unavailable"` (never 500).
 
 ## 5. Planned MongoDB additions
 - An `explain()` panel in the UI showing which index each diagnosis query used

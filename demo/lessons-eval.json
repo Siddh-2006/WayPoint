@@ -4,11 +4,22 @@
       "id": "lesson-seed-1",
       "symptom": "Contract violation: required key invoiceId missing; found similar key invoice_id in tool arguments.",
       "culprit": {
-        "units": ["model", "prompt"],
-        "shapley": { "model": 0.5, "prompt": 0.5, "config.chunkSize": 0.0 },
+        "units": [
+          "model",
+          "prompt"
+        ],
+        "shapley": {
+          "model": 0.5,
+          "prompt": 0.5,
+          "config.chunkSize": 0
+        },
         "interaction": true
       },
-      "changeTypes": ["model", "prompt", "config.chunkSize"],
+      "changeTypes": [
+        "model",
+        "prompt",
+        "config.chunkSize"
+      ],
       "fix": "Always enforce camelCase parameter naming in tool calls: use invoiceId, not invoice_id.",
       "source": "seed",
       "status": "active"
@@ -17,11 +28,17 @@
       "id": "lesson-seed-2",
       "symptom": "Missing required currency field in extract_invoice tool arguments.",
       "culprit": {
-        "units": ["prompt"],
-        "shapley": { "prompt": 1.0 },
+        "units": [
+          "prompt"
+        ],
+        "shapley": {
+          "prompt": 1
+        },
         "interaction": false
       },
-      "changeTypes": ["prompt"],
+      "changeTypes": [
+        "prompt"
+      ],
       "fix": "Specify default currency USD when ambiguous in extraction prompt instructions.",
       "source": "seed",
       "status": "active"
@@ -30,11 +47,17 @@
       "id": "lesson-seed-3",
       "symptom": "Double-precision amount cast to string type causing downstream schema rejection.",
       "culprit": {
-        "units": ["model"],
-        "shapley": { "model": 0.95 },
+        "units": [
+          "model"
+        ],
+        "shapley": {
+          "model": 0.95
+        },
         "interaction": false
       },
-      "changeTypes": ["model"],
+      "changeTypes": [
+        "model"
+      ],
       "fix": "Explicitly cast extracted invoice total to numerical float double.",
       "source": "seed",
       "status": "active"
@@ -43,11 +66,20 @@
       "id": "lesson-seed-4",
       "symptom": "Line item tax calculation omitted in extraction summary step.",
       "culprit": {
-        "units": ["prompt", "config.chunkSize"],
-        "shapley": { "prompt": 0.7, "config.chunkSize": 0.3 },
+        "units": [
+          "prompt",
+          "config.chunkSize"
+        ],
+        "shapley": {
+          "prompt": 0.7,
+          "config.chunkSize": 0.3
+        },
         "interaction": false
       },
-      "changeTypes": ["prompt", "config.chunkSize"],
+      "changeTypes": [
+        "prompt",
+        "config.chunkSize"
+      ],
       "fix": "Add verification step to cross-check subtotal plus tax before calling tool.",
       "source": "seed",
       "status": "active"
@@ -56,11 +88,17 @@
       "id": "lesson-seed-5",
       "symptom": "Vendor legal business entity name truncated at 32 characters by parser.",
       "culprit": {
-        "units": ["config.chunkSize"],
-        "shapley": { "config.chunkSize": 1.0 },
+        "units": [
+          "config.chunkSize"
+        ],
+        "shapley": {
+          "config.chunkSize": 1
+        },
         "interaction": false
       },
-      "changeTypes": ["config.chunkSize"],
+      "changeTypes": [
+        "config.chunkSize"
+      ],
       "fix": "Increase vendor string chunk buffer to preserve complete vendor names.",
       "source": "seed",
       "status": "active"
@@ -69,11 +107,20 @@
       "id": "lesson-seed-6",
       "symptom": "Date format ISO-8601 YYYY-MM-DD violated with UK format DD/MM/YYYY.",
       "culprit": {
-        "units": ["model", "prompt"],
-        "shapley": { "model": 0.4, "prompt": 0.6 },
+        "units": [
+          "model",
+          "prompt"
+        ],
+        "shapley": {
+          "model": 0.4,
+          "prompt": 0.6
+        },
         "interaction": true
       },
-      "changeTypes": ["model", "prompt"],
+      "changeTypes": [
+        "model",
+        "prompt"
+      ],
       "fix": "Prompt rule: Dates must strictly follow ISO 8601 YYYY-MM-DD format.",
       "source": "seed",
       "status": "active"
@@ -82,11 +129,17 @@
       "id": "lesson-seed-7",
       "symptom": "Payment terms net_30 missing from extracted tool call metadata.",
       "culprit": {
-        "units": ["prompt"],
-        "shapley": { "prompt": 0.8 },
+        "units": [
+          "prompt"
+        ],
+        "shapley": {
+          "prompt": 0.8
+        },
         "interaction": false
       },
-      "changeTypes": ["prompt"],
+      "changeTypes": [
+        "prompt"
+      ],
       "fix": "Extract paymentTerms whenever Net 30 or Due Upon Receipt appears in invoice body.",
       "source": "seed",
       "status": "active"
@@ -95,11 +148,17 @@
       "id": "lesson-seed-8",
       "symptom": "Duplicate invoice number generated when parsing credit memo invoices.",
       "culprit": {
-        "units": ["model"],
-        "shapley": { "model": 0.9 },
+        "units": [
+          "model"
+        ],
+        "shapley": {
+          "model": 0.9
+        },
         "interaction": false
       },
-      "changeTypes": ["model"],
+      "changeTypes": [
+        "model"
+      ],
       "fix": "Distinguish credit notes with prefix CR- to avoid unique key collisions.",
       "source": "seed",
       "status": "active"
@@ -216,6 +275,36 @@
     },
     {
       "query": "Invoice PDF OCR preprocessing step completed without contrast enhancement",
+      "expectedLessonId": null,
+      "isNegative": true,
+      "kind": "negative"
+    },
+    {
+      "query": "renegotiated supplier settlement timetable absent from extraction response",
+      "expectedLessonId": "lesson-seed-7",
+      "isNegative": false,
+      "kind": "hard_paraphrase"
+    },
+    {
+      "query": "credit rebate note generated collided with preexisting invoice primary key",
+      "expectedLessonId": "lesson-seed-8",
+      "isNegative": false,
+      "kind": "hard_paraphrase"
+    },
+    {
+      "query": "Accounts receivable aging summary categorized into thirty sixty ninety day buckets",
+      "expectedLessonId": null,
+      "isNegative": true,
+      "kind": "negative"
+    },
+    {
+      "query": "Bank wire routing transit number validated against Federal Reserve directory",
+      "expectedLessonId": null,
+      "isNegative": true,
+      "kind": "negative"
+    },
+    {
+      "query": "Purchase order approval workflow routed to procurement department director",
       "expectedLessonId": null,
       "isNegative": true,
       "kind": "negative"

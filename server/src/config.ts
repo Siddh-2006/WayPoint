@@ -62,6 +62,11 @@ const schema = z.object({
     .int()
     .positive('EMBED_DIM must be a positive integer')
     .default(1024),
+  EMBED_CACHE_SIZE: z.coerce
+    .number()
+    .int()
+    .positive('EMBED_CACHE_SIZE must be a positive integer')
+    .default(256),
 
   // Background worker
   WORKER_ENABLED: boolStr,
@@ -93,7 +98,7 @@ const schema = z.object({
 
   // Lessons, Vector Recall & Preflight
   LESSON_TTL_DAYS: z.coerce.number().int().positive().default(90),
-  LESSON_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.25),
+  LESSON_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.48),
 });
 
 // ─── Parse ────────────────────────────────────────────────────────────────────

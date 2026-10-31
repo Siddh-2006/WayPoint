@@ -188,13 +188,23 @@ export async function runPreflight(
 
   if (recallRes.results.length > 0) {
     const topLesson = recallRes.results[0]!;
-    reasons.push(
-      `Matched past incident lesson (${topLesson.lessonId}, score ${(topLesson.score * 100).toFixed(
-        0,
-      )}%): ${topLesson.lesson.symptom}`,
-    );
-    if (verdict === 'pass') {
-      verdict = 'warn';
+    // Requirement: A lesson below threshold can never produce a warn verdict.
+    // Only 'strong match' tier (>= LESSON_MIN_SCORE) produces a warning.
+    if (topLesson.tier === 'strong match' && topLesson.score >= config.LESSON_MIN_SCORE) {
+      reasons.push(
+        `Matched past incident lesson (${topLesson.lessonId}, score ${topLesson.score.toFixed(
+          3,
+        )} [${topLesson.tier}]): ${topLesson.lesson.symptom}`,
+      );
+      if (verdict === 'pass') {
+        verdict = 'warn';
+      }
+    } else {
+      reasons.push(
+        `Historical lesson noted (${topLesson.lessonId}, score ${topLesson.score.toFixed(
+          3,
+        )} [${topLesson.tier}]); below confidence threshold, verdict unchanged.`,
+      );
     }
   }
 
@@ -211,7 +221,7 @@ export async function runPreflight(
   const changeCount = changes.length;
   const violationPct = (replayWilson.estimate * 100).toFixed(0);
   const matchNotice =
-    recallRes.results.length > 0
+    recallRes.results.length > 0 && recallRes.results[0]!.tier === 'strong match'
       ? ` Matches lesson ${recallRes.results[0]!.lessonId} (${recallRes.results[0]!.lesson.fix.slice(0, 100)}).`
       : ' No regression history.';
 

@@ -95,6 +95,7 @@ pnpm gate:9   # Factorial replay grid & Shapley attribution (precision <= 1e-15)
 pnpm gate:10  # Episodic memory lessons, hybrid recall & preflight guard
 pnpm gate:10b # Real vector recall, honest score typing & hard paraphrase evaluation
 pnpm gate:11  # Evidence-cited LLM narration, MCP server & query explain panel
+pnpm gate:11e # Episodic memory calibration (split n=24), UI match tiering & Voyage rate limit resilience
 ```
 
 ### 5. Model Context Protocol (MCP) Server

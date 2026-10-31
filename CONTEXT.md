@@ -107,6 +107,9 @@ Connection string: `mongodb://localhost:27017/?directConnection=true` (local).
 | D16 | Replay isolation | Replay writes 0 documents to runs/events; 0 fake incidents |
 | D17 | Replay cache memoization | Unique keys in `replayCache` guarantee 0 new agent calls on repeated experiments |
 | D18 | Full-stack Docker image | Multi-stage build compiles `web` and `server`, serving SPA directly |
+| D24 | Text Match Root Cause | Gate 11c ran after collection purge (0 docs searched); 11d had active docs where "model" and "case" matched lesson-seed-1 (29% >= 25%). Pruning stopwords and distinctive token requirements resolved this. |
+| D25 | Atlas Voyage 3 RPM Trial Resilience | Implemented `QueryEmbeddingLruCache`, async startup demo precomputation, <= 1 embed call per request, and 429 fallback to `text_only` with note `"semantic search temporarily unavailable"`. |
+| D26 | Cosine Score Normalization & UI Tiering | Atlas `$vectorSearch` returns $(1+\cos)/2$. Waypoint normalizes to raw cosine $[-1, 1]$, calibrates `LESSON_MIN_SCORE = 0.48` on calibration split ($n=12$), and assigns UI tiers ("strong match" vs "weak match"). Preflight only warns on strong matches. Held-out Hit@3 = 100%, Neg FPR = 0%. |
 
 ---
 
@@ -123,6 +126,9 @@ Connection string: `mongodb://localhost:27017/?directConnection=true` (local).
 - [x] Gate 8: React dashboard & Live SSE stream (5 checks pass)  ✅ 2026-10-31
 - [x] Gate 9: Factorial replay grid & Shapley attribution (11 checks pass; maxDiff 1.11e-16)  ✅ 2026-10-31
 - [x] Gate 10: Episodic memory lessons, hybrid recall & preflight guard (12 checks pass)  ✅ 2026-10-31
+- [x] Gate 10b: Real Voyage embeddings & 3-way eval table (10 checks pass)  ✅ 2026-10-31
+- [x] Gate 11: Real local LLM narration, prompt injection test, closed-port fallback & MCP verification  ✅ 2026-10-31
+- [x] Gate 11e: Honest threshold calibration (split n=24), UI match tiering & Voyage rate-limit resilience  ✅ 2026-10-31
 
 ---
 

@@ -149,7 +149,10 @@ export async function narrateIncident(
       query: changeQuery,
       limit: 2,
     });
-    recalledLessons = recallRes.results;
+    // Only strong matches meeting LESSON_MIN_SCORE are cited as prior incidents
+    recalledLessons = recallRes.results.filter(
+      (r) => r.tier === 'strong match' && r.score >= config.LESSON_MIN_SCORE,
+    );
   } catch {
     // Non-fatal if lessons are unavailable
   }
