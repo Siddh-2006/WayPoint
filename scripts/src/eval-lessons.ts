@@ -54,41 +54,51 @@ export async function runLessonsEval(
   const projectId = `eval_${Date.now()}`;
   const provider = getEmbeddingProvider();
 
-  // 1. Seed eval lessons with real embeddings
+  // 1. Seed eval lessons with real embeddings in a single batch request
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
-  const seedDocs = [];
-  for (const item of evalData.seededLessons) {
+  const textsToEmbed = evalData.seededLessons.map((item: any) => {
     const culpritsList = item.culprit?.units ?? [];
-    const textToEmbed = `${item.symptom} | ${culpritsList.join(', ')} | ${item.changeTypes.join(', ')} | ${item.fix}`;
-    let embedding: number[] = [];
-    try {
-      const v = await provider.embed([textToEmbed], 'document');
-      embedding = v[0] ?? [];
-    } catch (err) {
-      console.warn(`[Eval] Failed to embed ${item.id}:`, err);
-    }
+    return `${item.symptom} | ${culpritsList.join(', ')} | ${item.changeTypes.join(', ')} | ${item.fix}`;
+  });
 
-    seedDocs.push({
-      _id: item.id,
-      incidentId: `inc_${item.id}`,
-      projectId,
-      symptom: item.symptom,
-      culprit: item.culprit,
-      changeTypes: item.changeTypes,
-      fix: item.fix,
-      source: 'seed',
-      status: 'active',
-      embedding,
-      embeddingModel: provider.model,
-      dim: provider.dim,
-      createdAt: now,
-      expiresAt,
-    });
-  }
+  console.log('[Voyage Eval] Embedding 8 seeded lessons in 1 batch...');
+  const embeddings = await provider.embed(textsToEmbed, 'document');
+
+  const seedDocs = evalData.seededLessons.map((item: any, idx: number) => ({
+    _id: item.id,
+    incidentId: `inc_${item.id}`,
+    projectId,
+    symptom: item.symptom,
+    culprit: item.culprit,
+    changeTypes: item.changeTypes,
+    fix: item.fix,
+    source: 'seed',
+    status: 'active',
+    embedding: embeddings[idx] ?? [],
+    embeddingModel: provider.model,
+    dim: provider.dim,
+    createdAt: now,
+    expiresAt,
+  }));
 
   await lessonsCol.insertMany(seedDocs as any);
+
+  console.log(`[Voyage Eval] Embedded & inserted 8 lessons. Pacing 25s for Atlas trial rate limit...`);
+  await new Promise((r) => setTimeout(r, 25_000));
+
+  // Pre-embed all unique query strings in a single batch request to stay within Atlas Voyage 3 RPM trial limit
+  const { queryEmbeddingCache } = await import('../../server/src/lessons/recall.js');
+  const uniqueQueries = Array.from(new Set(evalData.queries.map((q: any) => q.query))) as string[];
+  console.log(`[Voyage Eval] Embedding ${uniqueQueries.length} unique queries in 1 batch...`);
+  const queryVectors = await provider.embed(uniqueQueries, 'query');
+  console.log(`[Voyage Eval] Successfully pre-embedded ${uniqueQueries.length} queries.`);
+  uniqueQueries.forEach((q, idx) => {
+    if (queryVectors[idx]) {
+      queryEmbeddingCache.set(q, queryVectors[idx]);
+    }
+  });
 
   // 2. Helper to run evaluation for a given mode
   async function evaluateMode(mode: 'text_only' | 'vector_only' | 'rrf'): Promise<ModeMetrics> {
@@ -149,6 +159,40 @@ export async function runLessonsEval(
   const vectorMetrics = await evaluateMode('vector_only');
   const rrfMetrics = await evaluateMode('rrf');
 
+  const hardQueries = [
+    {
+      q: 'underlying foundation architecture shifted property casing conventions to underscores',
+      target: 'lesson-seed-1',
+    },
+    {
+      q: 'the new model renamed a field to snake case',
+      target: 'lesson-seed-1',
+    },
+    {
+      q: 'floating point value serialized as text instead of numeric',
+      target: 'lesson-seed-3',
+    },
+  ];
+
+  const hardParaphraseRanks = [];
+  for (const hq of hardQueries) {
+    const tRes = await recallLessons(db, { projectId, query: hq.q, mode: 'text_only', minScore: 0.25, limit: 5 });
+    const vRes = await recallLessons(db, { projectId, query: hq.q, mode: 'vector_only', minScore: 0.25, limit: 5 });
+    const rRes = await recallLessons(db, { projectId, query: hq.q, mode: 'rrf', minScore: 0.25, limit: 5 });
+
+    const tRank = tRes.results.findIndex((r) => r.lessonId === hq.target) + 1;
+    const vRank = vRes.results.findIndex((r) => r.lessonId === hq.target) + 1;
+    const rRank = rRes.results.findIndex((r) => r.lessonId === hq.target) + 1;
+
+    hardParaphraseRanks.push({
+      q: hq.q,
+      target: hq.target,
+      textRank: tRank > 0 ? tRank : null,
+      vectorRank: vRank > 0 ? vRank : null,
+      rrfRank: rRank > 0 ? rRank : null,
+    });
+  }
+
   // Hard paraphrase comparison sample (shares 0 content words with lesson-seed-1)
   const sampleQuery = 'underlying foundation architecture shifted property casing conventions to underscores';
   const expectedTarget = 'lesson-seed-1';
@@ -177,6 +221,7 @@ export async function runLessonsEval(
       rrf: rrfMetrics,
     },
     hardParaphraseCompare,
+    hardParaphraseRanks,
   };
 }
 

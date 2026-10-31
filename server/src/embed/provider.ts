@@ -78,7 +78,14 @@ export class AtlasVoyageEmbeddingProvider implements EmbeddingProvider {
     this.apiKey = cfg.apiKey;
     this.model = cfg.model || 'voyage-4';
     this.dim = cfg.dim || 1024;
-    this.baseUrl = (cfg.baseUrl || 'https://ai.mongodb.com/v1').replace(/\/$/, '');
+    let url = (cfg.baseUrl || 'https://ai.mongodb.com/v1').trim().replace(/\/+$/, '');
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = `https://${url}`;
+    }
+    if (!url.endsWith('/v1')) {
+      url = `${url}/v1`;
+    }
+    this.baseUrl = url;
   }
 
   async embed(texts: string[], inputType: EmbeddingInputType = 'document'): Promise<number[][]> {
@@ -146,7 +153,14 @@ export class AtlasVoyageEmbeddingProvider implements EmbeddingProvider {
           const safeErr = this.sanitizeError(rawErr);
 
           if ((status === 429 || status >= 500) && attempt < maxRetries) {
-            await new Promise((r) => setTimeout(r, delayMs));
+            const retryHeader = res.headers.get('retry-after');
+            const waitTime = retryHeader
+              ? parseInt(retryHeader, 10) * 1000
+              : status === 429
+                ? 25_000
+                : delayMs;
+            console.log(`[Voyage API] HTTP ${status} received. Backing off for ${Math.round(waitTime / 1000)}s (attempt ${attempt}/${maxRetries})...`);
+            await new Promise((r) => setTimeout(r, waitTime));
             delayMs *= 2;
             continue;
           }

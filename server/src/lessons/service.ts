@@ -205,8 +205,9 @@ export async function syncLessonEmbeddings(db: Db): Promise<{ synced: number }> 
       lesson.embedding.length === 0;
 
     if (needsEmbed) {
-      const culpritsList = lesson.culprit?.units ?? [];
-      const textToEmbed = `${lesson.symptom} | ${culpritsList.join(', ')} | ${lesson.changeTypes.join(', ')} | ${lesson.fix}`;
+      const culpritsList = Array.isArray(lesson.culprit?.units) ? lesson.culprit.units : [];
+      const changeTypesList = Array.isArray(lesson.changeTypes) ? lesson.changeTypes : [];
+      const textToEmbed = `${lesson.symptom || ''} | ${culpritsList.join(', ')} | ${changeTypesList.join(', ')} | ${lesson.fix || ''}`;
       try {
         const [vec] = await provider.embed([textToEmbed], 'document');
         if (vec && vec.length === provider.dim) {

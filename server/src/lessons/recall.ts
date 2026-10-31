@@ -21,6 +21,8 @@ import type { LessonDoc } from './service.js';
 
 export type ScoreType = 'cosine' | 'rrf' | 'lexical';
 
+export const queryEmbeddingCache = new Map<string, number[]>();
+
 export interface RecallResultItem {
   rank: number;
   lessonId: string;
@@ -98,8 +100,14 @@ export async function recallLessons(
   let vectorRanks: Map<string, { rank: number; score: number; lesson: LessonDoc }> = new Map();
 
   try {
-    const queryVectors = await provider.embed([query], 'query');
-    const queryVector = queryVectors[0];
+    let queryVector: number[] | undefined = queryEmbeddingCache.get(query);
+    if (!queryVector) {
+      const queryVectors = await provider.embed([query], 'query');
+      queryVector = queryVectors[0];
+      if (queryVector && queryVector.length > 0) {
+        queryEmbeddingCache.set(query, queryVector);
+      }
+    }
 
     if (queryVector && queryVector.length > 0) {
       // Execute $vectorSearch
@@ -177,8 +185,14 @@ export async function recallLessons(
       .toArray();
 
     try {
-      const queryVectors = await provider.embed([query], 'query');
-      const qVec = queryVectors[0];
+      let qVec: number[] | undefined = queryEmbeddingCache.get(query);
+      if (!qVec) {
+        const queryVectors = await provider.embed([query], 'query');
+        qVec = queryVectors[0];
+        if (qVec && qVec.length > 0) {
+          queryEmbeddingCache.set(query, qVec);
+        }
+      }
       if (qVec && qVec.length > 0) {
         const scored = candidates
           .filter((c) => Array.isArray(c.embedding) && c.embedding.length > 0)

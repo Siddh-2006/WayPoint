@@ -57,7 +57,7 @@ if (!hasEmbedKey) {
     const provider = getEmbeddingProvider();
     console.log(`[Embeddings Config] Provider: ${provider.name} | Model: ${provider.model} | Dim: ${provider.dim}`);
 
-    const { modes } = await runLessonsEval(MONGODB_URI, MONGODB_DB, 0.25);
+    const { modes, hardParaphraseRanks } = await runLessonsEval(MONGODB_URI, MONGODB_DB, 0.25);
 
     console.log('\n  Mode         | Hit@1 | Hit@3 | Neg FPR | Hard Hit@3');
     console.log('  -------------|-------|-------|---------|-----------');
@@ -72,35 +72,14 @@ if (!hasEmbedKey) {
     }
     console.log();
 
-    // Hardest paraphrase queries
-    const hardQueries = [
-      {
-        q: 'underlying foundation architecture shifted property casing conventions to underscores',
-        target: 'lesson-seed-1',
-      },
-      {
-        q: 'the new model renamed a field to snake case',
-        target: 'lesson-seed-1',
-      },
-      {
-        q: 'floating point value serialized as text instead of numeric',
-        target: 'lesson-seed-3',
-      },
-    ];
-
     console.log('Top 3 Hardest Paraphrases (Rank per mode):');
-    for (const hq of hardQueries) {
-      const { recallLessons } = await import('../../server/src/lessons/recall.js');
-      const tRes = await recallLessons(db, { projectId: 'eval_gate11', query: hq.q, mode: 'text_only', minScore: 0.25, limit: 5 });
-      const vRes = await recallLessons(db, { projectId: 'eval_gate11', query: hq.q, mode: 'vector_only', minScore: 0.25, limit: 5 });
-      const rRes = await recallLessons(db, { projectId: 'eval_gate11', query: hq.q, mode: 'rrf', minScore: 0.25, limit: 5 });
-
-      const tRank = tRes.results.findIndex((r) => r.lessonId === hq.target) + 1;
-      const vRank = vRes.results.findIndex((r) => r.lessonId === hq.target) + 1;
-      const rRank = rRes.results.findIndex((r) => r.lessonId === hq.target) + 1;
+    for (const hq of hardParaphraseRanks ?? []) {
+      const tRankStr = hq.textRank ? `#${hq.textRank}` : 'UNMATCHED';
+      const vRankStr = hq.vectorRank ? `#${hq.vectorRank}` : 'UNMATCHED';
+      const rRankStr = hq.rrfRank ? `#${hq.rrfRank}` : 'UNMATCHED';
 
       console.log(
-        `  "${hq.q.slice(0, 50)}…" -> target=${hq.target} | text: ${tRank > 0 ? '#' + tRank : 'UNMATCHED'} | vector: ${vRank > 0 ? '#' + vRank : 'UNMATCHED'} | rrf: ${rRank > 0 ? '#' + rRank : 'UNMATCHED'}`,
+        `  "${hq.q.slice(0, 50)}…" -> target=${hq.target} | text: ${tRankStr} | vector: ${vRankStr} | rrf: ${rRankStr}`,
       );
     }
     console.log();
