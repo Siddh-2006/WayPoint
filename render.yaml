@@ -38,4 +38,3 @@ services:
         value: "1024"
       - key: WORKER_ENABLED
         value: "false"
-
