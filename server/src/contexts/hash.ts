@@ -86,3 +86,4 @@ export function hashContext(ctx: ContextData): string {
   const canonicalJson = canonicalize(normalized);
   return createHash('sha256').update(canonicalJson, 'utf8').digest('hex');
 }
+

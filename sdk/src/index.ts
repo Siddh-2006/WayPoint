@@ -255,3 +255,4 @@ export function createWaypoint(config: WaypointConfig): WaypointClient {
     flushEvents,
   };
 }
+

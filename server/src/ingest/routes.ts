@@ -15,6 +15,7 @@ import { getDb } from '../db/client.js';
 import { IngestBodySchema } from './schema.js';
 import { redact } from './redact.js';
 import type { EventDoc } from './schema.js';
+import { checkRun, type ContractDoc } from '../contracts/check.js';
 
 /** Document shape stored in the `events` collection (string _id). */
 interface StoredEvent {
@@ -122,6 +123,40 @@ export async function ingestRoutes(app: FastifyInstance): Promise<void> {
         } else {
           req.log.error({ err }, 'insertMany unexpected error');
           return reply.code(500).send({ error: 'Internal server error' });
+        }
+      }
+
+      // Check contracts if any run has completed
+      const runEndDocs = docsToInsert.filter((d) => d.type === 'run_end');
+      if (runEndDocs.length > 0) {
+        const db = getDb();
+        const runsCol = db.collection('runs');
+        const contractsCol = db.collection<ContractDoc>('contracts');
+
+        for (const red of runEndDocs) {
+          const runEvents = await eventsCol
+            .find({ runId: red.runId })
+            .sort({ seq: 1 })
+            .toArray();
+
+          const contracts = await contractsCol
+            .find({ projectId: red.projectId })
+            .toArray();
+
+          if (contracts.length > 0) {
+            const violations = checkRun(contracts, runEvents);
+            await runsCol.updateOne(
+              { runId: red.runId },
+              {
+                $set: {
+                  violations,
+                  status: violations.length > 0 ? 'failed' : 'completed',
+                  endedAt: red.ts,
+                },
+              },
+              { upsert: true },
+            );
+          }
         }
       }
 

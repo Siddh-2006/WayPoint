@@ -27,8 +27,8 @@ The demo agent is **simulated** and is labeled as such in the README.
 | Production deploy, /health vs Atlas | 4 | ⬜ Pending |
 | Content-hashed contexts + derived diff | 5 | ✅ Done |
 | Simulated invoice agent + SDK | 6 | ✅ Done |
-| Contract mining + violations | 7 | ⬜ Pending |
-| Live dashboard via change stream | 8 | ⬜ Pending |
+| Contract mining + violations | 7 | ✅ Done |
+| Live dashboard via change stream | 8 | ✅ Done |
 | Freeze-replay grid + statistics | 9 | ⬜ Pending |
 | Structural trace diff | 10 | ⬜ Pending |
 | Lessons, embeddings, vector search, preflight | 11 | ⬜ Pending |
@@ -98,6 +98,10 @@ Connection string: `mongodb://localhost:27017/?directConnection=true` (local).
 | D7 | Atlas M0 limit 3 search indexes; we use 2 | `lessons_vector` + `lessons_text`; third reserved |
 | D8 | `initDb()` called on every server boot | Safe because all operations are idempotent |
 | D9 | CONTEXT.md generated from standard headings | Saves tokens; self-contained |
+| D10 | Single-service deployment | Fastify serves `web/dist` directly with SPA fallback to eliminate CORS & latency |
+| D11 | BSON number type mapping | JS `number` matches `double`, `int`, `long`, `decimal` from Mongo mining |
+| D12 | Zero secrets in client browser | Demo triggers execute server-side; 0 client keys |
+| D13 | Public read for demo projects | `READ_PUBLIC_PROJECTS` allows guest UI viewing without key exposure |
 
 ---
 
@@ -110,6 +114,8 @@ Connection string: `mongodb://localhost:27017/?directConnection=true` (local).
 - [ ] Gate 4: Production deploy against Atlas M0 (config & gate ready, awaiting host deployment)
 - [x] Gate 5: Content-hashed contexts & derived diff (6 checks pass)  ✅ 2026-10-31
 - [x] Gate 6: Simulated agent, corpus & SDK (7 checks pass)  ✅ 2026-10-31
+- [x] Gate 7: Contract mining, violations & detector (8 checks pass)  ✅ 2026-10-31
+- [x] Gate 8: React dashboard & Live SSE stream (5 checks pass)  ✅ 2026-10-31
 
 ---
 
@@ -122,6 +128,9 @@ Connection string: `mongodb://localhost:27017/?directConnection=true` (local).
 | Gate 1 (d): collection does not exist | `createSearchIndex` needs existing collection | Insert seed doc before calling `createSearchIndex` | ✅ Fixed |
 | Gate 1 (d): results=0 despite READY | Vector doc inserted after index built; not indexed | Moved seed insert (with `v` field) to before index creation | ✅ Fixed |
 | `insertMany` type incompatibility with string `_id` | Mismatch with MongoDB's default `ObjectId` type | Typed collection with `StoredEvent` interface having `_id: string` | ✅ Fixed |
+| Schema 121 error on `deployments` upsert | `rev` required integer in validator | Made `rev` optional on upsert, added `$setOnInsert: { rev: 1 }` | ✅ Fixed |
+| Gate 7 false positives on fresh runs | JS `number` was rejected by BSON `double` contract type | Mapped JS `number` to accept `double`, `int`, `long`, `decimal` | ✅ Fixed |
+| Gate 8 secret in bundle audit | Hardcoded API key in client component | Removed client key; execute runs server-side via `/v1/demo/run` | ✅ Fixed |
 
 ---
 
@@ -134,8 +143,13 @@ Key runtime dependencies:
 - `zod@3` — MIT
 - `mongodb@6` — Apache-2.0
 - `@fastify/cors` — MIT
+- `@fastify/static` — MIT
 - `pino-pretty` — MIT
 - `diff@9` — BSD-3-Clause
+- `react@18` — MIT
+- `recharts@2` — MIT
+- `lucide-react` — ISC
+- `@tanstack/react-query` — MIT
 - `tsx` — MIT
 - `vitest@2` — MIT
 
@@ -143,6 +157,6 @@ Key runtime dependencies:
 
 ## Next Step
 
-**Prompt 7: Contract mining, violations, and change-stream detector**
-- Gates 5 & 6 are complete and passed.
-- Production deployment (Gate 4) is ready for live host trigger.
+**Prompt 9: Freeze-replay grid with statistics**
+- Factorial $2^k$ replay experiment isolating model vs prompt vs config.
+- Shapley attribution to cleanly apportion blame for silent interaction bugs.

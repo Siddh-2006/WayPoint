@@ -20,6 +20,8 @@ import { getDb } from '../db/client.js';
 import { hashContext, type ContextData } from '../contexts/hash.js';
 import { runAgent, type InvoiceInput } from './invoice-agent.js';
 import { redact } from '../ingest/redact.js';
+import { checkRun, type ContractDoc } from '../contracts/check.js';
+import { mineContracts } from '../contracts/mine.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CORPUS_PATH = resolve(__dirname, './corpus.json');
@@ -154,8 +156,13 @@ export async function demoRoutes(app: FastifyInstance): Promise<void> {
       )
       .catch(() => undefined);
 
-    // 2. Load corpus (20 invoices)
+    // 2. Load corpus & fetch active contracts for this project
     const corpus = getCorpus();
+    const contracts = await db
+      .collection<ContractDoc>('contracts')
+      .find({ projectId })
+      .toArray();
+
     const batchRunId = `demo_${scenarioId}_${Date.now()}`;
     const allEvents: StoredEventDoc[] = [];
     const runDocs: StoredRunDoc[] = [];
@@ -170,6 +177,17 @@ export async function demoRoutes(app: FastifyInstance): Promise<void> {
         input,
         seed: input.id,
       });
+
+      // Check run steps against contracts
+      const checkEvents = result.steps.map((s, idx) => ({
+        eventId: `${runId}:${idx + 1}`,
+        runId,
+        type: s.type,
+        status: s.status,
+        stepKey: s.stepKey,
+        contextPayload: s.contextPayload,
+      }));
+      const violations = contracts.length > 0 ? checkRun(contracts, checkEvents) : [];
 
       let seq = 0;
 
@@ -221,8 +239,8 @@ export async function demoRoutes(app: FastifyInstance): Promise<void> {
         runId,
         projectId,
         contextHash,
-        status: 'completed',
-        violations: [],
+        status: violations.length > 0 ? 'failed' : 'completed',
+        violations,
         startedAt: now,
         endedAt: now,
         inputId: input.id,
@@ -232,6 +250,11 @@ export async function demoRoutes(app: FastifyInstance): Promise<void> {
     // 4. Bulk insert events & runs
     await eventsCol.insertMany(allEvents, { ordered: false }).catch(() => undefined);
     await runsCol.insertMany(runDocs, { ordered: false }).catch(() => undefined);
+
+    // If running good baseline scenario, auto-mine contracts so baseline is established
+    if (scenarioId === 'good') {
+      await mineContracts(db, projectId, contextHash).catch(() => undefined);
+    }
 
     return reply.send({
       simulated: true,

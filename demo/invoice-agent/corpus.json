@@ -20,3 +20,4 @@
   { "id": "INV-2026-019", "vendor": "Rapid Courier Services", "amount": 285.50, "currency": "USD", "date": "2026-03-21", "text": "Invoice INV-2026-019 from Rapid Courier Services for same-day dispatch: $285.50." },
   { "id": "INV-2026-020", "vendor": "Summit Executive Catering", "amount": 950.00, "currency": "USD", "date": "2026-03-25", "text": "Invoice INV-2026-020 from Summit Executive Catering for all-hands meeting: $950.00." }
 ]
+

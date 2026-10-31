@@ -46,3 +46,4 @@ describe('createWaypoint', () => {
     ]);
   });
 });
+

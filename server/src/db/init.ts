@@ -89,13 +89,14 @@ const validators: Record<string, Document> = {
   deployments: {
     $jsonSchema: {
       bsonType: 'object',
-      required: ['projectId', 'rev'],
+      required: ['projectId'],
       additionalProperties: true,
       properties: {
-        projectId: { bsonType: 'string' },
-        live:      { bsonType: 'string' },
-        history:   { bsonType: 'array' },
-        rev:       { bsonType: 'int' },
+        projectId:    { bsonType: 'string' },
+        live:         { bsonType: 'string' },
+        baselineHash: { bsonType: 'string' },
+        history:      { bsonType: 'array' },
+        rev:          { bsonType: ['int', 'double'] },
       },
     },
   },
@@ -146,6 +147,8 @@ const indexes: IndexSpec[] = [
   { collection: 'contexts',    key: { contentHash: 1 },                              options: { unique: true, name: 'contexts_hash_unique' } },
   { collection: 'deployments', key: { projectId: 1 },                               options: { unique: true, name: 'deployments_project_unique' } },
   { collection: 'replayCache', key: { key: 1 },                                     options: { unique: true, name: 'replay_key_unique' } },
+  { collection: 'incidents',   key: { projectId: 1, badHash: 1 },                   options: { unique: true, partialFilterExpression: { status: 'open' }, name: 'incidents_open_unique' } },
+  { collection: 'contracts',   key: { projectId: 1, tool: 1 },                      options: { unique: true, name: 'contracts_project_tool_unique' } },
   // TTL: expireAfterSeconds:0 uses the expiresAt field value as the expiry moment
   { collection: 'lessons', key: { expiresAt: 1 }, options: { expireAfterSeconds: 0, name: 'lessons_ttl', sparse: true } },
 ];

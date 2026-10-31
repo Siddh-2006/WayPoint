@@ -64,6 +64,25 @@ const schema = z.object({
 
   // Background worker
   WORKER_ENABLED: boolStr,
+
+  // Contract mining & detection thresholds
+  MIN_BASELINE_RUNS: z.coerce.number().int().positive().default(10),
+  CONTRACT_MIN_SUPPORT: z.coerce.number().min(0).max(1).default(0.98),
+  DETECT_WINDOW: z.coerce.number().int().positive().default(20),
+  DETECT_THRESHOLD: z.coerce.number().min(0).max(1).default(0.3),
+  DETECT_MIN_RUNS: z.coerce.number().int().positive().default(8),
+
+  // Live stream & public dashboard access
+  READ_PUBLIC_PROJECTS: z
+    .string()
+    .default('demo,invoice-demo')
+    .transform((s) =>
+      s
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean),
+    ),
+  MAX_SSE_CLIENTS: z.coerce.number().int().positive().default(50),
 });
 
 // ─── Parse ────────────────────────────────────────────────────────────────────

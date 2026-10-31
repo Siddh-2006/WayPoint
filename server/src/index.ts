@@ -15,7 +15,15 @@ import { connectDb, closeDb, getClient, getDb } from './db/client.js';
 import { ingestRoutes } from './ingest/routes.js';
 import { contextRoutes } from './contexts/routes.js';
 import { demoRoutes } from './demo/routes.js';
+import { contractRoutes } from './contracts/routes.js';
+import { incidentRoutes } from './detect/routes.js';
+import { streamRoutes } from './stream/routes.js';
+import { startDetector, stopDetector } from './detect/detector.js';
 import * as dbInit from './db/init.js';
+import fastifyStatic from '@fastify/static';
+import { existsSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const app = Fastify({
   logger: {
@@ -57,6 +65,29 @@ app.get('/health', async () => {
 await app.register(ingestRoutes);
 await app.register(contextRoutes);
 await app.register(demoRoutes);
+await app.register(contractRoutes);
+await app.register(incidentRoutes);
+await app.register(streamRoutes);
+
+// ─── Static Files & SPA Fallback ─────────────────────────────────────────────
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const webDist = resolve(__dirname, '../../web/dist');
+
+if (existsSync(webDist)) {
+  await app.register(fastifyStatic, {
+    root: webDist,
+    prefix: '/',
+    wildcard: false,
+  });
+
+  app.setNotFoundHandler(async (req, reply) => {
+    if (req.url.startsWith('/v1/')) {
+      return reply.code(404).send({ error: 'Endpoint not found' });
+    }
+    return reply.sendFile('index.html');
+  });
+}
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
@@ -65,6 +96,9 @@ async function start(): Promise<void> {
   // Idempotent: safe to call on every boot.
   // Search index creation is best-effort — see initDb() for details.
   await dbInit.initDb(getDb());
+  // Start real-time incident detector on runs change stream
+  await startDetector(getDb());
+
   await app.listen({ port: config.PORT, host: '0.0.0.0' });
   app.log.info(
     { port: config.PORT, env: config.NODE_ENV },
@@ -76,6 +110,7 @@ async function start(): Promise<void> {
 
 async function shutdown(signal: string): Promise<void> {
   app.log.info({ signal }, 'Shutting down…');
+  await stopDetector();
   await app.close();
   await closeDb();
   process.exit(0);

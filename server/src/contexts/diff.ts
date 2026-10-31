@@ -166,3 +166,4 @@ export function diffContexts(a: ContextData, b: ContextData): ContextChange[] {
 
   return changes;
 }
+

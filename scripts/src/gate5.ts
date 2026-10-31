@@ -230,3 +230,4 @@ await client.close();
 
 console.log(`\n${allPassed ? '✅ Gate 5 PASSED' : '❌ Gate 5 FAILED'}`);
 process.exit(allPassed ? 0 : 1);
+

@@ -29,6 +29,12 @@ Source  : https://github.com/kpdecker/jsdiff
 Usage   : Line diff for prompt text changes in contexts
 Verified: 2026-10-31 by agent
 
+## @fastify/static 8.x
+License : MIT
+Source  : https://github.com/fastify/fastify-static
+Usage   : Static asset serving and SPA fallback for web/dist
+Verified: 2026-10-31 by agent
+
 ## zod 3.x
 License : MIT
 Source  : https://github.com/colinhacks/zod
