@@ -41,7 +41,7 @@ export interface ModeMetrics {
 export async function runLessonsEval(
   mongoUri = MONGODB_URI,
   dbName = MONGODB_DB,
-  minScore = 0.24,
+  minScore = 0.25,
 ): Promise<{
   modes: Record<'text_only' | 'vector_only' | 'rrf', ModeMetrics>;
   hardParaphraseCompare: { query: string; expected: string; textRank: number | null; rrfRank: number | null };

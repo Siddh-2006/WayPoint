@@ -120,7 +120,7 @@ try {
 
 // ─── (c) Eval table printed: hit@3 (rrf) >= 0.80, negative FPR (rrf) <= 0.20 ─
 try {
-  const { modes } = await runLessonsEval(MONGODB_URI, MONGODB_DB, 0.24);
+  const { modes } = await runLessonsEval(MONGODB_URI, MONGODB_DB, 0.25);
 
   console.log('\n  Mode         | Hit@1 | Hit@3 | Neg FPR | Hard Hit@3');
   console.log('  -------------|-------|-------|---------|-----------');

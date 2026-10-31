@@ -136,11 +136,39 @@ export async function recallLessons(
       ];
 
       const rawVecResults = await lessonsCol.aggregate(vectorPipeline).toArray();
-      rawVecResults.forEach((doc, idx) => {
-        const lesson = (doc['document'] ?? doc) as LessonDoc;
-        const score = typeof doc['score'] === 'number' ? doc['score'] : 0.8;
-        vectorRanks.set(lesson._id, { rank: idx + 1, score, lesson });
-      });
+      if (rawVecResults.length > 0) {
+        rawVecResults.forEach((doc, idx) => {
+          const lesson = (doc['document'] ?? doc) as LessonDoc;
+          const score =
+            typeof doc['score'] === 'number'
+              ? doc['score']
+              : Array.isArray(lesson.embedding) && lesson.embedding.length > 0
+                ? cosineSimilarity(queryVector, lesson.embedding)
+                : 0;
+          if (score >= minScore) {
+            vectorRanks.set(lesson._id, { rank: idx + 1, score, lesson });
+          }
+        });
+      } else {
+        // Fall back to in-memory cosine if index sync is pending or index returned 0
+        const candidates = await lessonsCol
+          .find({ projectId, status: 'active', expiresAt: { $gt: now } })
+          .toArray();
+        if (queryVector && queryVector.length > 0 && candidates.length > 0) {
+          const scored = candidates
+            .filter((c) => Array.isArray(c.embedding) && c.embedding.length > 0)
+            .map((c) => ({
+              lesson: c,
+              score: cosineSimilarity(queryVector, c.embedding),
+            }))
+            .filter((c) => c.score >= minScore)
+            .sort((a, b) => b.score - a.score);
+
+          scored.forEach((item, idx) => {
+            vectorRanks.set(item.lesson._id, { rank: idx + 1, score: item.score, lesson: item.lesson });
+          });
+        }
+      }
     }
   } catch {
     // If Atlas vector search index is not yet built or unavailable, fall back to in-memory cosine
@@ -158,6 +186,7 @@ export async function recallLessons(
             lesson: c,
             score: cosineSimilarity(qVec, c.embedding),
           }))
+          .filter((c) => c.score >= minScore)
           .sort((a, b) => b.score - a.score);
 
         scored.forEach((item, idx) => {
@@ -190,7 +219,9 @@ export async function recallLessons(
   const textMatches = await findTextMatches(lessonsCol, projectId, query, now);
   const textRanks: Map<string, { rank: number; score: number; lesson: LessonDoc }> = new Map();
   textMatches.forEach((item, idx) => {
-    textRanks.set(item.lesson._id, { rank: idx + 1, score: item.score, lesson: item.lesson });
+    if (item.score >= minScore) {
+      textRanks.set(item.lesson._id, { rank: idx + 1, score: item.score, lesson: item.lesson });
+    }
   });
 
   // 4. Combine with Reciprocal Rank Fusion (RRF, k=60)

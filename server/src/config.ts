@@ -50,6 +50,7 @@ const schema = z.object({
   LLM_BASE_URL: z.string().url().optional(),
   LLM_API_KEY: z.string().optional(),
   LLM_MODEL: z.string().optional(),
+  LLM_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).default(2500),
 
   // Embeddings
   EMBED_PROVIDER: z.enum(['voyage', 'mongodb', 'ollama', 'none']).default('voyage'),
