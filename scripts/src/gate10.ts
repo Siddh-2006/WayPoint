@@ -171,14 +171,17 @@ try {
     }),
   });
 
-  const recallData = (await recallRes.json()) as { results: Array<{ lessonId: string; score: number }> };
+  const recallData = (await recallRes.json()) as {
+    mode: string;
+    results: Array<{ lessonId: string; score: number }>;
+  };
   const topResult = recallData.results[0];
   const ok = topResult?.lessonId === lessonAId && topResult.score >= 0.65;
 
   check(
     '(c) Paraphrased query returns planted lesson at rank 1 (scoped to project)',
     ok,
-    `topRank=${topResult?.lessonId} score=${topResult?.score}`,
+    `mode=${recallData.mode} topRank=${topResult?.lessonId} score=${topResult?.score}`,
   );
 } catch (err) {
   check('(c) Paraphrase recall', false, String(err));
