@@ -34,15 +34,9 @@ export function IncidentPage({ incidents }: IncidentPageProps) {
     queryFn: async () => {
       const res = await fetch('/v1/incidents?projectId=demo');
       if (!res.ok) {
-        // Fallback to invoice-demo if demo is empty
-        const fallback = await fetch('/v1/incidents?projectId=invoice-demo');
-        return fallback.json();
+        return { incidents: [] };
       }
       const json = await res.json();
-      if (!json.incidents || json.incidents.length === 0) {
-        const fallback = await fetch('/v1/incidents');
-        return fallback.json();
-      }
       return json;
     },
     refetchInterval: 3000,

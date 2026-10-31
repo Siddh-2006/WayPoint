@@ -65,3 +65,4 @@ https://github.com/Siddh-2006/WayPoint
 3. [ ] Confirm demo video is unlisted or public and audio is clear.
 4. [ ] Paste access instructions into the submission portal.
 5. [ ] Submit before the 10:00 PM final portal close.
+

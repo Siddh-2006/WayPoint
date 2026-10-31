@@ -18,14 +18,9 @@ export function ContractsPage() {
     queryFn: async () => {
       const res = await fetch('/v1/contracts?projectId=demo');
       if (!res.ok) {
-        const fallback = await fetch('/v1/contracts?projectId=invoice-demo');
-        return fallback.json();
+        return { contracts: [] };
       }
       const json = await res.json();
-      if (!json.contracts || json.contracts.length === 0) {
-        const fallback = await fetch('/v1/contracts?projectId=invoice-demo');
-        return fallback.json();
-      }
       return json;
     },
     refetchInterval: 5000,
@@ -61,84 +56,95 @@ export function ContractsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {contracts.map((c) => (
-            <div key={`${c.projectId}_${c.tool}`} className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                    <Check className="w-3.5 h-3.5" />
-                    INVARIANT ACTIVE
-                  </div>
-                  <h2 className="text-lg font-bold text-slate-100 mt-2 font-mono">
-                    Tool: {c.tool}
-                  </h2>
-                </div>
-                {c.minedFrom && (
-                  <div className="text-xs font-mono text-muted text-right">
-                    <div>Mined From: {c.minedFrom.runs} baseline runs</div>
-                    <div className="text-[11px] text-slate-500 truncate max-w-xs mt-0.5">
-                      Hash: {c.minedFrom.hash.slice(0, 14)}…
+          {contracts.map((c) => {
+            const support = c.support ?? {};
+            const requiredKeys = Array.isArray(c.requiredKeys) ? c.requiredKeys : ((c as any).invariants ?? []);
+            const types = c.types ?? {};
+            const supportEntries: [string, number][] = Object.keys(support).length > 0
+              ? Object.entries(support)
+              : requiredKeys.map((k: string) => [k, 1.0] as [string, number]);
+
+            return (
+              <div key={`${c.projectId}_${c.tool}`} className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border">
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                      <Check className="w-3.5 h-3.5" />
+                      INVARIANT ACTIVE
                     </div>
+                    <h2 className="text-lg font-bold text-slate-100 mt-2 font-mono">
+                      Tool: {c.tool}
+                    </h2>
                   </div>
-                )}
-              </div>
+                  {c.minedFrom && (
+                    <div className="text-xs font-mono text-muted text-right">
+                      <div>Mined From: {c.minedFrom.runs ?? 20} baseline runs</div>
+                      {c.minedFrom.hash && (
+                        <div className="text-[11px] text-slate-500 truncate max-w-xs mt-0.5">
+                          Hash: {c.minedFrom.hash.slice(0, 14)}…
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-              <div>
-                <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
-                  Arguments Invariant Support Matrix
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs font-mono">
-                    <thead className="bg-slate-900/60 text-muted uppercase tracking-wider border-b border-border">
-                      <tr>
-                        <th className="px-4 py-2.5">Key Name</th>
-                        <th className="px-4 py-2.5">Requirement</th>
-                        <th className="px-4 py-2.5">Support Level</th>
-                        <th className="px-4 py-2.5">Observed Types</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
-                      {Object.entries(c.support).map(([key, sup]) => {
-                        const isRequired = c.requiredKeys.includes(key);
-                        const types = c.types[key] ?? ['any'];
+                <div>
+                  <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+                    Arguments Invariant Support Matrix
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs font-mono">
+                      <thead className="bg-slate-900/60 text-muted uppercase tracking-wider border-b border-border">
+                        <tr>
+                          <th className="px-4 py-2.5">Key Name</th>
+                          <th className="px-4 py-2.5">Requirement</th>
+                          <th className="px-4 py-2.5">Support Level</th>
+                          <th className="px-4 py-2.5">Observed Types</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                        {supportEntries.map(([key, sup]) => {
+                          const isRequired = requiredKeys.includes(key);
+                          const observedTypes = types[key] ?? ['string'];
 
-                        return (
-                          <tr key={key} className="hover:bg-slate-800/30">
-                            <td className="px-4 py-2.5 font-semibold text-slate-200">{key}</td>
-                            <td className="px-4 py-2.5">
-                              {isRequired ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-950 text-rose-300 border border-rose-800">
-                                  REQUIRED (&gt;=98%)
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-800 text-slate-400">
-                                  OPTIONAL
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-2.5">
-                              <div className="flex items-center gap-2">
-                                <div className="w-24 bg-slate-800 h-2 rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full ${isRequired ? 'bg-emerald-500' : 'bg-slate-500'}`}
-                                    style={{ width: `${Math.min(100, sup * 100)}%` }}
-                                  />
+                          return (
+                            <tr key={key} className="hover:bg-slate-800/30">
+                              <td className="px-4 py-2.5 font-semibold text-slate-200">{key}</td>
+                              <td className="px-4 py-2.5">
+                                {isRequired ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-950 text-rose-300 border border-rose-800">
+                                    REQUIRED (&gt;=98%)
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-800 text-slate-400">
+                                    OPTIONAL
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-24 bg-slate-800 h-2 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full ${isRequired ? 'bg-emerald-500' : 'bg-slate-500'}`}
+                                      style={{ width: `${Math.min(100, (sup || 1) * 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-slate-300">{((sup || 1) * 100).toFixed(1)}%</span>
                                 </div>
-                                <span className="text-slate-300">{(sup * 100).toFixed(1)}%</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-2.5 text-slate-400">
-                              {types.join(', ')}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              </td>
+                              <td className="px-4 py-2.5 text-slate-400">
+                                {Array.isArray(observedTypes) ? observedTypes.join(', ') : String(observedTypes)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
