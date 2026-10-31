@@ -130,9 +130,31 @@ export function IncidentPage({ incidents }: IncidentPageProps) {
                       Violation Rate: {(activeIncident.rate * 100).toFixed(0)}%
                     </h2>
                   </div>
-                  <div className="text-right text-xs font-mono text-muted">
-                    <div>Opened: {new Date(activeIncident.openedAt).toLocaleString()}</div>
-                    <div className="mt-1">Project: {activeIncident.projectId}</div>
+                  <div className="flex flex-col sm:items-end gap-2">
+                    <button
+                      onClick={async () => {
+                        const targetId = (activeIncident as any)._id ?? activeIncident.id;
+                        try {
+                          await fetch(`/v1/incidents/${targetId}/resolve`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              fix: 'Always enforce camelCase parameter naming in tool calls: use invoiceId, not invoice_id.',
+                            }),
+                          });
+                          alert('Incident resolved and saved as episodic lesson in memory!');
+                        } catch (e) {
+                          alert('Failed to resolve incident: ' + String(e));
+                        }
+                      }}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-colors flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Resolve & Save Lesson
+                    </button>
+                    <div className="text-xs font-mono text-muted">
+                      Project: {activeIncident.projectId}
+                    </div>
                   </div>
                 </div>
 

@@ -6,6 +6,7 @@ import {
   FileCheck2,
   Cpu,
   BookOpen,
+  ShieldCheck,
   Play,
   RotateCw,
   Compass,
@@ -14,7 +15,8 @@ import { LivePage, type RunItem } from './pages/LivePage.js';
 import { IncidentPage, type IncidentItem } from './pages/IncidentPage.js';
 import { ContractsPage } from './pages/ContractsPage.js';
 import { ExperimentsPage } from './pages/ExperimentsPage.js';
-import { ComingSoonPage } from './pages/ComingSoonPage.js';
+import { LessonsPage } from './pages/LessonsPage.js';
+import { PreflightPage } from './pages/PreflightPage.js';
 
 export default function App() {
   const navigate = useNavigate();
@@ -186,7 +188,11 @@ export default function App() {
 
             <NavLink
               to="/experiments"
-              className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 text-slate-500 opacity-60 cursor-not-allowed hidden md:flex"
+              className={({ isActive }) =>
+                `px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
+                  isActive ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`
+              }
             >
               <Cpu className="w-3.5 h-3.5" />
               Experiments
@@ -194,10 +200,26 @@ export default function App() {
 
             <NavLink
               to="/lessons"
-              className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 text-slate-500 opacity-60 cursor-not-allowed hidden md:flex"
+              className={({ isActive }) =>
+                `px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
+                  isActive ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`
+              }
             >
               <BookOpen className="w-3.5 h-3.5" />
               Lessons
+            </NavLink>
+
+            <NavLink
+              to="/preflight"
+              className={({ isActive }) =>
+                `px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
+                  isActive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-slate-400 hover:text-slate-200'
+                }`
+              }
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Preflight
             </NavLink>
           </nav>
 
@@ -278,15 +300,8 @@ export default function App() {
           <Route path="/incidents" element={<IncidentPage incidents={incidents} />} />
           <Route path="/contracts" element={<ContractsPage />} />
           <Route path="/experiments" element={<ExperimentsPage />} />
-          <Route
-            path="/lessons"
-            element={
-              <ComingSoonPage
-                title="Episodic Memory & Preflight Verification"
-                description="Vector-indexed lessons learned in MongoDB Atlas preventing regressions prior to deployment commits."
-              />
-            }
-          />
+          <Route path="/lessons" element={<LessonsPage />} />
+          <Route path="/preflight" element={<PreflightPage />} />
         </Routes>
       </main>
 

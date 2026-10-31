@@ -30,12 +30,12 @@ The demo agent is **simulated** and is labeled as such in the README.
 | Contract mining + violations | 7 | ✅ Done |
 | Live dashboard via change stream | 8 | ✅ Done |
 | Freeze-replay grid + statistics | 9 | ✅ Done |
-| Structural trace diff | 10 | ⬜ Pending |
-| Lessons, embeddings, vector search, preflight | 11 | ⬜ Pending |
-| LLM narration (compact summary) | 12 | ⬜ Pending |
-| MCP server | 13 | ⬜ Pending |
-| Hard cases, benchmark, explain() panel | 14 | ⬜ Pending |
-| README, video, PPT, freeze checklist | 15 | ⬜ Pending |
+| Lessons, embeddings, vector search, preflight | 10 | ✅ Done |
+| Structural trace diff | 10 (alt) | ⬜ Optional |
+| LLM narration (compact summary) | 11 | ⬜ Next |
+| MCP server | 12 | ⬜ Pending |
+| Hard cases, benchmark, explain() panel | 13 | ⬜ Pending |
+| README, video, PPT, freeze checklist | 14 | ⬜ Pending |
 
 ---
 
@@ -121,7 +121,8 @@ Connection string: `mongodb://localhost:27017/?directConnection=true` (local).
 - [x] Gate 6: Simulated agent, corpus & SDK (7 checks pass)  ✅ 2026-10-31
 - [x] Gate 7: Contract mining, violations & detector (8 checks pass)  ✅ 2026-10-31
 - [x] Gate 8: React dashboard & Live SSE stream (5 checks pass)  ✅ 2026-10-31
-- [x] Gate 9: Factorial replay grid & Shapley attribution (11 checks pass)  ✅ 2026-10-31
+- [x] Gate 9: Factorial replay grid & Shapley attribution (11 checks pass; maxDiff 1.11e-16)  ✅ 2026-10-31
+- [x] Gate 10: Episodic memory lessons, hybrid recall & preflight guard (12 checks pass)  ✅ 2026-10-31
 
 ---
 
@@ -139,6 +140,9 @@ Connection string: `mongodb://localhost:27017/?directConnection=true` (local).
 | Gate 8 secret in bundle audit | Hardcoded API key in client component | Removed client key; execute runs server-side via `/v1/demo/run` | ✅ Fixed |
 | Fastify empty body error on POST replay | Fastify 5 rejects empty body with Content-Type application/json | Passed `{}` body in POST replay calls | ✅ Fixed |
 | Number(input.id) yielded NaN | Invoice IDs are alphanumeric ('INV-2026-001') | Parsed integer digits from ID string | ✅ Fixed |
+| Gate 9a Shapley efficiency 1e-4 drift | Intermediate rounding inside core `computeShapley` | Retained unrounded 64-bit IEEE doubles; maxDiff dropped to 1.11e-16 | ✅ Fixed |
+| Gate 10b 404 in incident resolve route | Missing `toObjectIdOrString` helper on query | Wrapped ID in `toObjectIdOrString` to match both ObjectId and string | ✅ Fixed |
+| Gate 10j preflight cache collision | Cache key lacked proposedContext hash | Keyed replayCache by `proposedHash:inputId:seed:v1` | ✅ Fixed |
 
 ---
 
@@ -165,6 +169,6 @@ Key runtime dependencies:
 
 ## Next Step
 
-**Prompt 10: Structural trace diff**
-- Trace alignment and step-by-step divergence localization.
-- Finding the exact step and tool call where a good run and a failing run bifurcate.
+**Prompt 11: LLM Narration & MCP Server**
+- Evidence-cited LLM narration synthesizing pre-computed replay & memory evidence into <= 600 chars plain-English explanations.
+- Fastify/STDIO MCP server exposing tools `get_deployment_status`, `list_incidents`, `get_incident_attribution`, and `preflight_check`.
