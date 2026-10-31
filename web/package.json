@@ -1,0 +1,6 @@
+{
+  "name": "@waypoint/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Waypoint dashboard — React UI (placeholder, built in Prompt 8)"
+}

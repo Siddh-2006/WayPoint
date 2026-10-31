@@ -1,0 +1,24 @@
+# railway.toml
+# Railway deployment configuration for Waypoint.
+#
+# NOTE: Railway has introduced an SDK-based config (.railway/railway.ts) as the
+# future direction. This file uses the still-supported railway.toml format.
+# If Railway prompts you to migrate, run: railway config migrate
+#
+# Build context: repo root (Dockerfile copies workspace manifests).
+# Dockerfile: server/Dockerfile (multi-stage, non-root node user).
+#
+# Change streams require a PERSISTENT process — do NOT deploy to a serverless plan.
+# Railway's Hobby / Pro plans run persistent containers. ✓
+
+[build]
+builder      = "dockerfile"
+dockerfilePath = "server/Dockerfile"
+
+[deploy]
+startCommand        = "node server/dist/index.js"
+healthcheckPath     = "/health"
+healthcheckTimeout  = 120
+restartPolicyType   = "on_failure"
+restartPolicyMaxRetries = 5
+

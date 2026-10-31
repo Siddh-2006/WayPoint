@@ -1,0 +1,34 @@
+# docker-compose.yml
+# Image: mongodb/mongodb-atlas-local:8.0.16-20261014T135244Z
+# LICENSE: Server Side Public License (SSPL) — image is used as a service, not copied.
+# Provides: single-node replica set + mongot (Atlas Search / Vector Search).
+# Connection string: mongodb://localhost:27017/?directConnection=true
+
+services:
+  mongo:
+    image: mongodb/mongodb-atlas-local:8.0.16-20261014T135244Z
+    container_name: waypoint-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      # The atlas-local image starts its own replica set; no auth by default.
+      # Set DO_NOT_TRACK=1 to suppress telemetry.
+      DO_NOT_TRACK: "1"
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - "--quiet"
+        - "--eval"
+        - "db.adminCommand('ping').ok || quit(1)"
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+    name: waypoint_mongo_data

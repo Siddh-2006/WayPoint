@@ -1,0 +1,29 @@
+# secrets
+.env
+
+# deps
+node_modules/
+**/node_modules/
+
+# build output
+dist/
+**/dist/
+build/
+.next/
+
+# docker volumes
+volumes/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# test coverage
+coverage/
+
+# pnpm
+.pnpm-debug.log

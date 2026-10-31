@@ -1,0 +1,26 @@
+{
+  "name": "waypoint",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "dev": "pnpm --filter server dev",
+    "gate:1": "tsx scripts/src/gate1.ts",
+    "gate:2": "tsx scripts/src/gate2.ts",
+    "gate:3": "tsx scripts/src/gate3.ts",
+    "gate:4": "tsx scripts/src/gate4.ts",
+    "db:init": "tsx scripts/src/init-db.ts",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

@@ -1,0 +1,32 @@
+# .dockerignore — build context sent to Docker daemon (repo root as context)
+# Exclude everything that must not be baked into the image.
+
+# Secrets — never in image
+.env
+.env.*
+!.env.example
+
+# Version control
+.git
+.gitignore
+
+# Build outputs (rebuilt inside Docker)
+**/dist
+**/node_modules
+
+# Docker files themselves (no recursion needed)
+server/Dockerfile
+.dockerignore
+
+# Dev tooling / IDE
+.vscode
+.idea
+*.log
+
+# Local data volumes
+volumes/
+
+# OS artefacts
+.DS_Store
+Thumbs.db
+

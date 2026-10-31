@@ -1,0 +1,41 @@
+# render.yaml
+# Blueprint spec for Render deployment of Waypoint server.
+#
+# Change streams require a persistent process — service type must be 'web' on a
+# paid or persistent plan (Starter or higher). Free tier spins down on idle.
+
+services:
+  - type: web
+    name: waypoint-server
+    runtime: docker
+    dockerfilePath: server/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: LOG_LEVEL
+        value: info
+      - key: CORS_ORIGIN
+        sync: false # Set in dashboard: e.g. https://your-app.com or http://localhost:5173
+      - key: PUBLIC_URL
+        sync: false # Set in dashboard: e.g. https://waypoint-server.onrender.com
+      - key: MONGODB_URI
+        sync: false # Set in dashboard (SECRET): mongodb+srv://...
+      - key: MONGODB_DB
+        value: waypoint
+      - key: API_KEYS
+        sync: false # Set in dashboard (SECRET): comma-separated API keys
+      - key: LLM_ENABLED
+        value: "false"
+      - key: EMBED_PROVIDER
+        value: none
+      - key: EMBED_DIM
+        value: "1024"
+      - key: WORKER_ENABLED
+        value: "false"
+
