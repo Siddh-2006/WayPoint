@@ -15,7 +15,7 @@ export interface FactItem {
   label: string;
   text: string;
   numbers: string[]; // Numbers/percentages present in this fact for citation verification
-  data?: Record<string, unknown>;
+  data?:undefined| Record<string, unknown>;
 }
 
 export function truncateText(text: unknown, maxLen = 120): string {
